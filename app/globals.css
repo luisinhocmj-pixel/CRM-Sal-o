@@ -1,0 +1,35 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-headline: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: #5718b8;
+  --color-primary-container: #6f3bd1;
+  --color-secondary: #944461;
+  --color-secondary-container: #fe9cbb;
+  --color-background: #faf8fd;
+  --color-surface: #faf8fd;
+  --color-surface-container: #efedf2;
+  --color-surface-container-low: #f5f3f8;
+  --color-surface-container-lowest: #ffffff;
+  --color-on-surface: #1b1b1f;
+  --color-on-surface-variant: #4a4454;
+  --color-outline: #7b7485;
+  --color-outline-variant: #ccc3d6;
+}
+
+@layer utilities {
+  .bg-brand-gradient {
+    background: linear-gradient(135deg, #6F3BD1 0%, #E889A8 100%);
+  }
+  .text-brand-gradient {
+    background: linear-gradient(135deg, #6F3BD1 0%, #E889A8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .shadow-soft {
+    box-shadow: 0px 12px 32px rgba(111, 59, 209, 0.06);
+  }
+}
