@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   try {
     const { appointment } = await request.json();
     
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase!.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
