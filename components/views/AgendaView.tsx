@@ -79,14 +79,11 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
           endDate = format(monthDays[monthDays.length - 1], 'yyyy-MM-dd');
         }
 
-        const { data } = await getAppointments({ startDate, endDate, pageSize: 500 });
-        setAppointments(data);
-      } catch (error) {
-        console.error('Error fetching appointments for agenda:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+        const { data } = await getAppointments({
+  startDate,
+  endDate,
+  pageSize: 500,
+} as any);
 
     fetchAppointments();
   }, [selectedDate, agendaType, getWeekDays, getMonthDays]);
