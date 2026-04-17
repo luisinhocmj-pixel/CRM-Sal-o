@@ -86,31 +86,39 @@ export default function LuxeBeautyApp() {
     }
   }, [session]);
 
-  useEffect(() => {
-    supabaseService.supabase?.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (!session) setIsLoading(false);
-    });
+ useEffect(() => {
+  const supabase = supabaseService.supabase;
 
-    if (!supabaseService.supabase) {
+  supabase?.auth.getSession().then(({ data: { session } }) => {
+    setSession(session);
+    if (!session) setIsLoading(false);
+  });
+
+  if (!supabase) {
+    setIsLoading(false);
+    return;
+  }
+
+ const { data: { subscription } } =
+  supabase.auth.onAuthStateChange((event, session) => {
+    console.log(`Supabase Auth Event: ${event}`);
+    setSession(session);
+
+    if (event === 'SIGNED_OUT') {
+      setClients([]);
+      setAppointments([]);
       setIsLoading(false);
-      return;
+      handleSetView('dashboard');
+    } else if (event === 'TOKEN_REFRESHED') {
+      console.log('Token refreshed successfully');
+      loadData();
+    } else if (event === 'SIGNED_IN' && session) {
+      loadData();
     }
+  });
 
-    const { data: { subscription } } = supabaseService.supabase.auth.onAuthStateChange((event, session) => {
-      console.log(`Supabase Auth Event: ${event}`);
-      setSession(session);
-
-      if (event === 'SIGNED_OUT') {
-        setClients([]);
-        setAppointments([]);
-        setIsLoading(false);
-        handleSetView('dashboard');
-      } else if (event === 'TOKEN_REFRESHED') {
-        console.log('Token refreshed successfully');
-        loadData();
-      } else if (event === 'SIGNED_IN' && session) {
-        loadData();
+  return () => subscription.unsubscribe();
+}, [handleSetView, loadData]);
       }
     });
 
