@@ -96,17 +96,17 @@ export default function LuxeBeautyApp() {
       console.log(`Supabase Auth Event: ${event}`);
       setSession(session);
       
-     if (event === 'SIGNED_OUT') {
+ if (event === 'SIGNED_OUT') {
   setClients([]);
   setAppointments([]);
   setIsLoading(false);
-};
-        handleSetView('dashboard'); // Reset to root
-      } else if (event === 'TOKEN_REFRESHED') {
-        console.log('Token refreshed successfully');
-        loadData(); // Re-fetch to ensure data is fresh with new token
-      } else if (event === 'SIGNED_IN' && session) {
-        loadData();
+  handleSetView('dashboard'); // Reset to root
+} else if (event === 'TOKEN_REFRESHED') {
+  console.log('Token refreshed successfully');
+  loadData(); // Re-fetch to ensure data is fresh with new token
+} else if (event === 'SIGNED_IN' && session) {
+  loadData();
+}
       }
     });
 
