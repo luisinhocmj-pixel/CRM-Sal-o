@@ -44,7 +44,7 @@ export default function LuxeBeautyApp() {
       setViewHistory(prev => {
         if (prev.length > 1) {
           const newHistory = [...prev];
-          newHistory.pop(); // Remove current view
+          newHistory.pop();
           const previous = newHistory[newHistory.length - 1];
           setView(previous);
           return newHistory;
@@ -56,12 +56,12 @@ export default function LuxeBeautyApp() {
     } else {
       setView(prevView => {
         if (newView === prevView) return prevView;
-        
+
         if (newView === 'dashboard') {
           setViewHistory(['dashboard']);
           return 'dashboard';
         }
-        
+
         setViewHistory(prev => [...prev, newView]);
         return newView;
       });
@@ -70,12 +70,13 @@ export default function LuxeBeautyApp() {
 
   const loadData = React.useCallback(async () => {
     if (!session) return;
+
     try {
       const [clientsRes, appointmentsRes] = await Promise.all([
-        supabaseService.getClients(1, 100), // Get first 100 for dashboard/agenda
+        supabaseService.getClients(1, 100),
         supabaseService.getAppointments({ pageSize: 100 })
       ]);
-      
+
       if (clientsRes.data) setClients(clientsRes.data);
       if (appointmentsRes.data) setAppointments(appointmentsRes.data);
     } catch (error) {
@@ -85,34 +86,37 @@ export default function LuxeBeautyApp() {
     }
   }, [session]);
 
-  // Auth listener
   useEffect(() => {
     supabaseService.supabase?.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (!session) setIsLoading(false);
     });
 
-    const { data: { subscription } } = supabaseService.supabase!.auth.onAuthStateChange((event, session) => {
+    if (!supabaseService.supabase) {
+      setIsLoading(false);
+      return;
+    }
+
+    const { data: { subscription } } = supabaseService.supabase.auth.onAuthStateChange((event, session) => {
       console.log(`Supabase Auth Event: ${event}`);
       setSession(session);
-      
- if (event === 'SIGNED_OUT') {
-  setClients([]);
-  setAppointments([]);
-  setIsLoading(false);
-  handleSetView('dashboard'); // Reset to root
-} else if (event === 'TOKEN_REFRESHED') {
-  console.log('Token refreshed successfully');
-  loadData(); // Re-fetch to ensure data is fresh with new token
-} else if (event === 'SIGNED_IN' && session) {
-  loadData();
-}
+
+      if (event === 'SIGNED_OUT') {
+        setClients([]);
+        setAppointments([]);
+        setIsLoading(false);
+        handleSetView('dashboard');
+      } else if (event === 'TOKEN_REFRESHED') {
+        console.log('Token refreshed successfully');
+        loadData();
+      } else if (event === 'SIGNED_IN' && session) {
+        loadData();
+      }
     });
 
     return () => subscription.unsubscribe();
   }, [handleSetView, loadData]);
 
-  // Load data when session changes
   useEffect(() => {
     if (session) {
       loadData();
@@ -140,35 +144,35 @@ export default function LuxeBeautyApp() {
 
   const handleSaveAppointment = async (apptData: Appointment & { next_visit?: string }) => {
     try {
-      // Separate appointment data from client update data
       const { next_visit, ...appointment } = apptData;
-      
+
       await supabaseService.saveAppointment(appointment);
-      
-      // Create Google Calendar event if connected (background)
+
       fetch('/api/calendar/event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appointment })
       }).catch(err => console.error('Silent failure creating calendar event:', err));
-      
-      // Update client stats in the local state for immediate feedback
+
       const client = clients.find(c => c.id === apptData.client_id);
       if (client) {
-        const currentTotal = parseFloat(client.total?.replace('R$ ', '').replace('.', '').replace(',', '.') || '0') || 0;
+        const currentTotal = parseFloat(
+          client.total?.replace('R$ ', '').replace('.', '').replace(',', '.') || '0'
+        ) || 0;
+
         const newTotal = currentTotal + apptData.value;
         const formattedTotal = `R$ ${newTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-        
+
         const updatedClient: Partial<Client> = {
           lastVisit: apptData.date,
           total: formattedTotal,
           service: apptData.service,
           nextVisit: next_visit || client.nextVisit
         };
-        
+
         await supabaseService.updateClient(client.id!, updatedClient);
       }
-      
+
       await loadData();
       handleSetView('dashboard');
     } catch (error) {
@@ -185,10 +189,12 @@ export default function LuxeBeautyApp() {
 
   const handleSaveClient = async (clientData: Partial<Client>) => {
     try {
-      if (editingClient) {
+      if (editingClient?.id != null) {
         const updated = await supabaseService.updateClient(editingClient.id, clientData);
         if (updated) {
-          setClients(clients.map(c => c.id === editingClient.id ? { ...c, ...updated } : c));
+          setClients(
+            clients.map(c => c.id === editingClient.id ? { ...c, ...updated } : c)
+          );
         }
       } else {
         const created = await supabaseService.createClient(clientData);
@@ -214,12 +220,11 @@ export default function LuxeBeautyApp() {
   };
 
   const renderView = () => {
-
     switch (view) {
       case 'dashboard':
         return (
-          <DashboardView 
-            clients={clients} 
+          <DashboardView
+            clients={clients}
             setView={handleSetView}
             setFinancialType={handleSetFinancialType}
             userName={session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0]}
@@ -227,8 +232,8 @@ export default function LuxeBeautyApp() {
         );
       case 'clients':
         return (
-          <ClientsView 
-            onSelectClient={handleSelectClient} 
+          <ClientsView
+            onSelectClient={handleSelectClient}
             onEdit={handleEditClient}
             onDelete={handleDeleteClient}
             setView={handleSetView}
@@ -241,22 +246,31 @@ export default function LuxeBeautyApp() {
         return <ReturnsView setView={handleSetView} onSelectClient={handleSelectClient} clients={clients} />;
       case 'settings':
         return (
-          <SettingsView 
-            setView={handleSetView} 
-            logoUrl={logoUrl} 
-            onRefresh={loadData} 
+          <SettingsView
+            setView={handleSetView}
+            logoUrl={logoUrl}
+            onRefresh={loadData}
             userName={session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0]}
             userEmail={session?.user?.email}
           />
         );
       case 'client-detail':
-        return <ClientDetailView setView={handleSetView} client={selectedClient} clients={clients} appointments={appointments} onEditClient={handleEditClient} onSelectClient={handleSelectClient} />;
+        return (
+          <ClientDetailView
+            setView={handleSetView}
+            client={selectedClient}
+            clients={clients}
+            appointments={appointments}
+            onEditClient={handleEditClient}
+            onSelectClient={handleSelectClient}
+          />
+        );
       case 'new-client':
         return (
-          <NewClientView 
-            setView={handleSetView} 
-            onSave={handleSaveClient} 
-            editingClient={editingClient} 
+          <NewClientView
+            setView={handleSetView}
+            onSave={handleSaveClient}
+            editingClient={editingClient}
             clients={clients}
           />
         );
@@ -264,10 +278,10 @@ export default function LuxeBeautyApp() {
         return <NewAppointmentView setView={handleSetView} clients={clients} onSave={handleSaveAppointment} />;
       case 'financial-detail':
         return (
-          <FinancialDetailView 
-            setView={handleSetView} 
-            type={financialState.level} 
-            clients={clients} 
+          <FinancialDetailView
+            setView={handleSetView}
+            type={financialState.level}
+            clients={clients}
             onSelectClient={handleSelectClient}
             externalState={financialState}
             setExternalState={setFinancialState}
@@ -299,18 +313,18 @@ export default function LuxeBeautyApp() {
     <ErrorBoundary>
       <div className="flex min-h-screen bg-surface-bright font-sans text-on-surface selection:bg-primary/10 selection:text-primary">
         <Sidebar view={view} setView={handleSetView} onFinancialClick={handleFinancialMenuClick} />
-        
+
         <main className="flex-grow flex flex-col min-w-0">
-          <TopBar 
-            view={view} 
-            setView={handleSetView} 
-            searchQuery={searchQuery} 
-            setSearchQuery={setSearchQuery} 
+          <TopBar
+            view={view}
+            setView={handleSetView}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
             clients={clients}
             onSelectClient={handleSelectClient}
             onFinancialClick={handleFinancialMenuClick}
           />
-          
+
           <div className="flex-grow overflow-y-auto">
             <AnimatePresence mode="wait">
               {isLoading ? (
