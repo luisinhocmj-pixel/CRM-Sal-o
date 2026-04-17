@@ -107,7 +107,6 @@ export default function LuxeBeautyApp() {
 } else if (event === 'SIGNED_IN' && session) {
   loadData();
 }
-      }
     });
 
     return () => subscription.unsubscribe();
