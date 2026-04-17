@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const tokens = await getTokensFromCode(code);
     
     // Get the current user from the session
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase!.auth.getUser();
     
     if (!user) {
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
