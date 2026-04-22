@@ -26,6 +26,7 @@ export const getTokensFromCode = async (code: string) => {
 };
 
 export const saveTokens = async (userId: string, tokens: { access_token?: string | null; refresh_token?: string | null; expiry_date?: number | null }) => {
+  if (!supabase) throw new Error('Supabase client not initialized');
   const { error } = await supabase
     .from('google_auth')
     .upsert({
@@ -40,6 +41,7 @@ export const saveTokens = async (userId: string, tokens: { access_token?: string
 };
 
 export const getCalendarClient = async (userId: string) => {
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from('google_auth')
     .select('*')

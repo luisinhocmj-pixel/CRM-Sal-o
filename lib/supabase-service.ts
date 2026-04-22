@@ -216,13 +216,21 @@ export const deleteClient = async (id: number) => {
   if (error) throw error;
 };
 
-export const getAppointments = async (options: { date?: string; page?: number; pageSize?: number } = {}) => {
+export interface GetAppointmentsOptions {
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export const getAppointments = async (options: GetAppointmentsOptions = {}) => {
   if (!supabase) return { data: [], count: 0 };
   
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { data: [], count: 0 };
 
-  const { date, page = 1, pageSize = 50 } = options;
+  const { date, startDate, endDate, page = 1, pageSize = 50 } = options;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -233,6 +241,12 @@ export const getAppointments = async (options: { date?: string; page?: number; p
   
   if (date) {
     query = query.eq('date', date);
+  } else if (startDate && endDate) {
+    query = query.gte('date', startDate).lte('date', endDate);
+  } else if (startDate) {
+    query = query.gte('date', startDate);
+  } else if (endDate) {
+    query = query.lte('date', endDate);
   }
 
   const { data, error, count } = await query

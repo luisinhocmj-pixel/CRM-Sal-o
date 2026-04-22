@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Scissors, Mail, Lock, ArrowRight, Sparkles, Copy, Check } from 'lucide-react';
+import { Scissors, Mail, Lock, ArrowRight, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface AuthViewProps {
@@ -15,14 +15,6 @@ export const AuthView = ({ onAuthSuccess }: AuthViewProps) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  const handleCopyLink = () => {
-    const url = window.location.origin;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,10 +23,12 @@ export const AuthView = ({ onAuthSuccess }: AuthViewProps) => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase!.auth.signInWithPassword({ email, password });
+        if (!supabase) throw new Error('Serviço de autenticação não configurado');
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        const { error } = await supabase!.auth.signUp({ 
+        if (!supabase) throw new Error('Serviço de autenticação não configurado');
+        const { error } = await supabase.auth.signUp({ 
           email, 
           password,
           options: {
@@ -129,14 +123,6 @@ export const AuthView = ({ onAuthSuccess }: AuthViewProps) => {
             className="text-sm font-bold text-primary hover:underline block w-full"
           >
             {isLogin ? 'Não tem uma conta? Cadastre-se' : 'Já tem uma conta? Entre aqui'}
-          </button>
-
-          <button 
-            onClick={handleCopyLink}
-            className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-surface-container-high rounded-xl text-xs font-bold text-on-surface-variant hover:bg-surface-container-highest transition-all"
-          >
-            {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-            {copied ? 'Link Copiado!' : 'Copiar Link para outro celular'}
           </button>
         </div>
 

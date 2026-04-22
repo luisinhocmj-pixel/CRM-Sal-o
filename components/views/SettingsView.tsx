@@ -33,9 +33,12 @@ export const SettingsView = ({ setView, logoUrl, onRefresh, userName, userEmail 
   useEffect(() => {
     const checkGoogleConnection = async () => {
       try {
-        const { data: { user } } = await supabaseService.supabase.auth.getUser();
+        const sb = supabaseService.supabase;
+        if (!sb) return;
+        
+        const { data: { user } } = await sb.auth.getUser();
         if (user) {
-          const { data, error } = await supabaseService.supabase
+          const { data, error } = await sb
             .from('google_auth')
             .select('user_id')
             .eq('user_id', user.id)
