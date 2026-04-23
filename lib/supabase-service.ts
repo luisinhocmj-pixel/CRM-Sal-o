@@ -417,12 +417,12 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
       }
 
       clientId = newClient.id;
-      clientMap.set(normalizedName, clientId);
+      clientMap.set(normalizedName, clientId!);
     }
 
     appointmentsToInsert.push({
       user_id: user.id,
-      client_id: clientId,
+      client_id: clientId!,
       client_name: appt.client,
       service: appt.service,
       value: appt.value,
