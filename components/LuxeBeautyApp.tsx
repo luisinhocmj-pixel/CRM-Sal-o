@@ -166,14 +166,16 @@ export default function LuxeBeautyApp() {
         const newTotal = currentTotal + apptData.value;
         const formattedTotal = `R$ ${newTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
         
-        const updatedClient: Partial<Client> = {
-          lastVisit: apptData.date,
-          total: formattedTotal,
-          service: apptData.service,
-          nextVisit: next_visit || client.nextVisit
-        };
-        
-        await supabaseService.updateClient(client.id!, updatedClient);
+        if (client && client.id) {
+          const updatedClient: Partial<Client> = {
+            lastVisit: apptData.date,
+            total: formattedTotal,
+            service: apptData.service,
+            nextVisit: next_visit || client.nextVisit
+          };
+          
+          await supabaseService.updateClient(client.id, updatedClient);
+        }
       }
       
       await loadData();
@@ -192,7 +194,7 @@ export default function LuxeBeautyApp() {
 
   const handleSaveClient = async (clientData: Partial<Client>) => {
     try {
-      if (editingClient) {
+      if (editingClient && editingClient.id) {
         const updated = await supabaseService.updateClient(editingClient.id, clientData);
         if (updated) {
           setClients(clients.map(c => c.id === editingClient.id ? { ...c, ...updated } : c));
