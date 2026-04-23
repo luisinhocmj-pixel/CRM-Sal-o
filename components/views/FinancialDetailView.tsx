@@ -420,7 +420,7 @@ export const FinancialDetailView = ({
                 </div>
                 <div className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center transition-all",
-                  item.total > 0 ? "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white" : "bg-slate-50 text-slate-300"
+                  (item.total ?? 0) > 0 ? "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white" : "bg-slate-50 text-slate-300"
                 )}>
                   <ChevronRight size={20} />
                 </div>
