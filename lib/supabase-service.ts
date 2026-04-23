@@ -56,21 +56,23 @@ const getAuthenticatedUser = async () => {
   if (cachedUser) return cachedUser;
   if (userPromise) return userPromise;
 
-  userPromise = new Promise(async (resolve) => {
+  userPromise = (async () => {
     try {
+      if (!supabase) return null;
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) {
         cachedUser = null;
-      } else {
-        cachedUser = user;
+        return null;
       }
-      resolve(cachedUser);
+      cachedUser = user;
+      return user;
     } catch (err) {
-      resolve(null);
+      console.error('Auth check failed:', err);
+      return null;
     } finally {
       userPromise = null;
     }
-  });
+  })();
 
   return userPromise;
 };
@@ -347,26 +349,37 @@ export const getAppointments = async (options: GetAppointmentsOptions = {}) => {
   return { data: appointments, count: count || 0 };
 };
 
-export const getFinancialSummary = async (startDate: string, endDate: string) => {
+export const getFinancialSummary = async (startDate: string, endDate: string, retries = 2) => {
   if (!supabase) return { total: 0, count: 0 };
 
-  const user = await getAuthenticatedUser();
-  if (!user) return { total: 0, count: 0 };
+  try {
+    const user = await getAuthenticatedUser();
+    if (!user) return { total: 0, count: 0 };
 
-  const { data, error, count } = await supabase
-    .from('appointments')
-    .select('value', { count: 'exact' })
-    .eq('user_id', user.id)
-    .gte('date', startDate)
-    .lte('date', endDate);
+    const { data, error, count } = await supabase
+      .from('appointments')
+      .select('value', { count: 'exact' })
+      .eq('user_id', user.id)
+      .gte('date', startDate)
+      .lte('date', endDate);
 
-  if (error) handleSupabaseError(error, 'buscar resumo financeiro');
+    if (error) {
+      if (retries > 0 && error.message?.includes('fetch')) {
+        await new Promise(r => setTimeout(r, 500));
+        return getFinancialSummary(startDate, endDate, retries - 1);
+      }
+      handleSupabaseError(error, 'buscar resumo financeiro');
+    }
 
-  const total = (data || []).reduce((acc, curr) => acc + (curr.value || 0), 0);
-  return {
-    total,
-    count: count || 0
-  };
+    const total = (data || []).reduce((acc, curr) => acc + (curr.value || 0), 0);
+    return {
+      total,
+      count: count || 0
+    };
+  } catch (error) {
+    console.error('Financial summary error:', error);
+    return { total: 0, count: 0 }; // Return safe defaults on network error
+  }
 };
 
 export const saveAppointment = async (appointment: Appointment) => {

@@ -49,9 +49,9 @@ export const DashboardView = ({ setView, clients, setFinancialType, userName }: 
 
         const [daily, weekly, monthly, yearly] = await Promise.all([
           getFinancialSummary(todayStr, todayStr),
-          getFinancialSummary(weekStart, weekEnd),
-          getFinancialSummary(monthStart, monthEnd),
-          getFinancialSummary(yearStart, yearEnd)
+          new Promise(r => setTimeout(r, 100)).then(() => getFinancialSummary(weekStart, weekEnd)),
+          new Promise(r => setTimeout(r, 200)).then(() => getFinancialSummary(monthStart, monthEnd)),
+          new Promise(r => setTimeout(r, 300)).then(() => getFinancialSummary(yearStart, yearEnd))
         ]);
 
         setFinancials({
