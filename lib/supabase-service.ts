@@ -258,6 +258,7 @@ export const getAppointments = async (options: GetAppointmentsOptions = {}) => {
   const appointments = (data || []).map(a => ({
     id: a.id,
     user_id: a.user_id,
+    client_id: a.client_id,
     client_name: a.client_name,
     service: a.service,
     value: a.value,

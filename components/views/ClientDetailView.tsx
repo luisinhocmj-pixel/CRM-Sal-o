@@ -7,14 +7,14 @@ import {
   Sparkles, Share2, Edit, PlusCircle, Calendar
 } from 'lucide-react';
 import Image from 'next/image';
-import { Client, View } from '@/lib/supabase-service';
+import { Client, View, Appointment } from '@/lib/supabase-service';
 import { cn } from '@/lib/utils';
 
 interface ClientDetailViewProps {
   setView: (v: View | 'back') => void;
   client: Client | null;
   clients: Client[];
-  appointments: { client_name: string; service: string; value: number; time: string; payment: string; date: string }[];
+  appointments: Appointment[];
   onEditClient: (c: Client) => void;
   onSelectClient: (c: Client) => void;
 }
