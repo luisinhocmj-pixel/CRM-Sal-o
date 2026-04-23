@@ -17,7 +17,7 @@ import { NotificationsView } from './views/NotificationsView';
 import { AuthView } from './views/AuthView';
 import { ErrorBoundary } from './ErrorBoundary';
 import { FloatingActionButton } from './FloatingActionButton';
-import { Client, View, Appointment } from '@/lib/supabase-service';
+import { Client, View, Appointment, Profile } from '@/lib/supabase-service';
 import { Session } from '@supabase/supabase-js';
 import * as supabaseService from '@/lib/supabase-service';
 
@@ -26,6 +26,7 @@ export default function LuxeBeautyApp() {
   const [, setViewHistory] = useState<View[]>(['dashboard']);
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [financialState, setFinancialState] = useState({
@@ -71,13 +72,15 @@ export default function LuxeBeautyApp() {
   const loadData = React.useCallback(async () => {
     if (!session) return;
     try {
-      const [clientsRes, appointmentsRes] = await Promise.all([
+      const [clientsRes, appointmentsRes, profileRes] = await Promise.all([
         supabaseService.getClients(1, 100), // Get first 100 for dashboard/agenda
-        supabaseService.getAppointments({ pageSize: 100 })
+        supabaseService.getAppointments({ pageSize: 100 }),
+        supabaseService.getProfile()
       ]);
       
       if (clientsRes.data) setClients(clientsRes.data);
       if (appointmentsRes.data) setAppointments(appointmentsRes.data);
+      if (profileRes) setProfile(profileRes);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -231,7 +234,7 @@ export default function LuxeBeautyApp() {
             clients={clients} 
             setView={handleSetView}
             setFinancialType={handleSetFinancialType}
-            userName={session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0]}
+            userName={profile?.salon_name || session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0]}
           />
         );
       case 'clients':
@@ -254,8 +257,9 @@ export default function LuxeBeautyApp() {
             setView={handleSetView} 
             logoUrl={logoUrl} 
             onRefresh={loadData} 
-            userName={session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0]}
+            userName={profile?.salon_name || session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0]}
             userEmail={session?.user?.email}
+            profile={profile}
           />
         );
       case 'client-detail':

@@ -37,9 +37,85 @@ export const AppointmentSchema = z.object({
 export type Client = z.infer<typeof ClientSchema>;
 export type Appointment = z.infer<typeof AppointmentSchema>;
 
+export const ProfileSchema = z.object({
+  id: z.string(),
+  salon_name: z.string().min(1, 'Nome do salão é obrigatório'),
+  email: z.string().optional(),
+});
+
+export type Profile = z.infer<typeof ProfileSchema>;
+
 export type View = 'dashboard' | 'clients' | 'appointments' | 'returns' | 'agenda' | 'client-detail' | 'new-appointment' | 'new-client' | 'financial-detail' | 'settings' | 'notifications';
 
 // --- HELPERS ---
+
+let cachedUser: any = null;
+let userPromise: Promise<any> | null = null;
+
+const getAuthenticatedUser = async () => {
+  if (cachedUser) return cachedUser;
+  if (userPromise) return userPromise;
+
+  userPromise = new Promise(async (resolve) => {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) {
+        cachedUser = null;
+      } else {
+        cachedUser = user;
+      }
+      resolve(cachedUser);
+    } catch (err) {
+      resolve(null);
+    } finally {
+      userPromise = null;
+    }
+  });
+
+  return userPromise;
+};
+
+export const getProfile = async () => {
+  if (!supabase) return null;
+  const user = await getAuthenticatedUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      // Profile doesn't exist, create it
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert({ id: user.id, salon_name: user.user_metadata?.name || user.email?.split('@')[0] || 'Meu Salão' })
+        .select()
+        .single();
+      if (createError) return null;
+      return newProfile as Profile;
+    }
+    return null;
+  }
+  return data as Profile;
+};
+
+export const updateProfile = async (salonName: string) => {
+  if (!supabase) throw new Error('Supabase not initialized');
+  const user = await getAuthenticatedUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert({ id: user.id, salon_name: salonName })
+    .select()
+    .single();
+
+  if (error) handleSupabaseError(error, 'atualizar perfil');
+  return data as Profile;
+};
 
 const handleSupabaseError = (error: unknown, context: string) => {
   let message = 'Erro desconhecido';
@@ -74,7 +150,7 @@ const handleSupabaseError = (error: unknown, context: string) => {
 export const getClients = async (page = 1, pageSize = 20, search = '') => {
   if (!supabase) return { data: [], count: 0 };
   
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser();
   if (!user) return { data: [], count: 0 };
 
   const from = (page - 1) * pageSize;
@@ -117,7 +193,7 @@ export const getClients = async (page = 1, pageSize = 20, search = '') => {
 export const createClient = async (client: Partial<Client>) => {
   if (!supabase) throw new Error('Supabase not initialized');
   
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser();
   if (!user) throw new Error('User not authenticated');
 
   // Validate
@@ -227,7 +303,7 @@ export interface GetAppointmentsOptions {
 export const getAppointments = async (options: GetAppointmentsOptions = {}) => {
   if (!supabase) return { data: [], count: 0 };
   
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser();
   if (!user) return { data: [], count: 0 };
 
   const { date, startDate, endDate, page = 1, pageSize = 50 } = options;
@@ -274,7 +350,7 @@ export const getAppointments = async (options: GetAppointmentsOptions = {}) => {
 export const getFinancialSummary = async (startDate: string, endDate: string) => {
   if (!supabase) return { total: 0, count: 0 };
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser();
   if (!user) return { total: 0, count: 0 };
 
   const { data, error, count } = await supabase
@@ -296,7 +372,7 @@ export const getFinancialSummary = async (startDate: string, endDate: string) =>
 export const saveAppointment = async (appointment: Appointment) => {
   if (!supabase) throw new Error('Supabase not initialized');
   
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser();
   if (!user) throw new Error('User not authenticated');
 
   // Validate
@@ -328,7 +404,7 @@ export const saveAppointment = async (appointment: Appointment) => {
 export const seedDatabase = async (initialClients: Client[], appointments: { client: string; service: string; value: number; time: string; payment: string; date: string }[]) => {
   if (!supabase) throw new Error('Supabase não inicializado. Verifique as chaves API.');
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthenticatedUser();
   if (!user) throw new Error('Usuário não autenticado para sincronização.');
 
   console.log('Iniciando sincronização robusta...');

@@ -8,7 +8,7 @@ import {
   Calendar as CalendarIcon
 } from 'lucide-react';
 import Image from 'next/image';
-import { View } from '@/lib/supabase-service';
+import { View, Profile } from '@/lib/supabase-service';
 import { cn } from '@/lib/utils';
 import * as supabaseService from '@/lib/supabase-service';
 import { HAIR_SERVICES } from '@/lib/constants';
@@ -22,13 +22,22 @@ interface SettingsViewProps {
   onRefresh?: () => void;
   userName?: string;
   userEmail?: string;
+  profile?: Profile | null;
 }
 
-export const SettingsView = ({ setView, logoUrl, onRefresh, userName, userEmail }: SettingsViewProps) => {
+export const SettingsView = ({ setView, logoUrl, onRefresh, userName, userEmail, profile }: SettingsViewProps) => {
   const [activeSection, setActiveSection] = useState('Geral');
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [syncMessage, setSyncMessage] = useState('');
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+  const [salonName, setSalonName] = useState(profile?.salon_name || userName || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile?.salon_name) {
+      setSalonName(profile.salon_name);
+    }
+  }, [profile]);
 
   useEffect(() => {
     const checkGoogleConnection = async () => {
@@ -143,6 +152,23 @@ export const SettingsView = ({ setView, logoUrl, onRefresh, userName, userEmail 
       console.error('Export error:', err);
       setSyncStatus('error');
       setSyncMessage('Erro ao exportar dados. Tente novamente.');
+    }
+  };
+
+  const handleUpdateSalonName = async () => {
+    if (!salonName.trim()) return;
+    setIsSaving(true);
+    try {
+      await supabaseService.updateProfile(salonName);
+      setSyncStatus('success');
+      setSyncMessage('Perfil atualizado com sucesso!');
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setSyncStatus('error');
+      setSyncMessage('Erro ao atualizar perfil.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -490,14 +516,37 @@ ALTER TABLE appointments DISABLE ROW LEVEL SECURITY;`}
                     <Sparkles size={32} fill="currentColor" />
                   )}
                 </div>
-                <div>
+                <div className="flex-grow">
                   <h3 className="text-xl font-bold text-on-surface">{userName || 'Especialista'}</h3>
                   <p className="text-on-surface-variant">{userEmail || 'Plano Profissional'}</p>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h4 className="text-xs font-bold text-outline uppercase tracking-widest">Preferências do Sistema</h4>
+                <h4 className="text-xs font-bold text-outline uppercase tracking-widest">Meu Negócio</h4>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-on-surface-variant px-1">NOME DO SALÃO / ESTÉTICA</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={salonName}
+                        onChange={(e) => setSalonName(e.target.value)}
+                        className="flex-grow bg-surface-container-low border-none rounded-2xl px-4 py-3 text-on-surface focus:ring-2 ring-primary/20 transition-all font-medium"
+                        placeholder="Ex: Fernanda Ayres Estética"
+                      />
+                      <button 
+                        onClick={handleUpdateSalonName}
+                        disabled={isSaving || salonName === (profile?.salon_name || userName)}
+                        className="bg-primary text-white px-6 rounded-2xl font-bold text-sm hover:shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                      >
+                        {isSaving ? <RefreshCw className="animate-spin" size={18} /> : 'Salvar'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <h4 className="text-xs font-bold text-outline uppercase tracking-widest mt-8">Preferências do Sistema</h4>
                 {[
                   { label: 'Notificações via WhatsApp', icon: MessageSquare, active: true },
                   { label: 'Lembretes Automáticos', icon: Bell, active: true },

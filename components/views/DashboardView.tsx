@@ -172,31 +172,31 @@ export const DashboardView = ({ setView, clients, setFinancialType, userName }: 
         <div className="lg:col-span-8 space-y-8">
           {/* Strategic Insights Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-2xl shadow-soft border border-outline-variant/5 flex items-center gap-4">
-              <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+            <div className="bg-white p-5 rounded-2xl shadow-soft border border-outline-variant/5 flex items-center gap-4 min-w-0">
+              <div className="p-3 bg-amber-50 text-amber-600 rounded-xl shrink-0">
                 <Award size={20} />
               </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold text-outline tracking-widest">Top Referenciador</p>
-                <p className="font-bold text-on-surface truncate max-w-[120px]">{topReferrers[0]?.name || 'Ninguém ainda'}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] uppercase font-bold text-outline tracking-widest truncate">Top Referenciador</p>
+                <p className="font-bold text-on-surface truncate pr-1">{topReferrers[0]?.name || 'Ninguém ainda'}</p>
               </div>
             </div>
-            <div className="bg-white p-5 rounded-2xl shadow-soft border border-outline-variant/5 flex items-center gap-4">
-              <div className="p-3 bg-red-50 text-red-600 rounded-xl">
+            <div className="bg-white p-5 rounded-2xl shadow-soft border border-outline-variant/5 flex items-center gap-4 min-w-0">
+              <div className="p-3 bg-red-50 text-red-600 rounded-xl shrink-0">
                 <AlertCircle size={20} />
               </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold text-outline tracking-widest">Retornos Atrasados</p>
-                <p className="font-bold text-on-surface">{overdue.length} Clientes</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] uppercase font-bold text-outline tracking-widest truncate">Retornos Atrasados</p>
+                <p className="font-bold text-on-surface truncate">{overdue.length} Clientes</p>
               </div>
             </div>
-            <div className="bg-white p-5 rounded-2xl shadow-soft border border-outline-variant/5 flex items-center gap-4">
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <div className="bg-white p-5 rounded-2xl shadow-soft border border-outline-variant/5 flex items-center gap-4 min-w-0">
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0">
                 <Users size={20} />
               </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold text-outline tracking-widest">Clientes Inativas</p>
-                <p className="font-bold text-on-surface">{inactive.length} Clientes</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] uppercase font-bold text-outline tracking-widest truncate">Clientes Inativas</p>
+                <p className="font-bold text-on-surface truncate">{inactive.length} Clientes</p>
               </div>
             </div>
           </div>
