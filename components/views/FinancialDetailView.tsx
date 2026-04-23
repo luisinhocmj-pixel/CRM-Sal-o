@@ -37,6 +37,17 @@ const months = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
+interface ChartDataItem {
+  name?: string;
+  date?: number;
+  day?: number;
+  month?: number;
+  year?: number;
+  value?: number;
+  total?: number;
+  label?: string;
+}
+
 export const FinancialDetailView = ({ 
   setView, 
   type, 
@@ -47,7 +58,7 @@ export const FinancialDetailView = ({
 }: FinancialDetailViewProps) => {
   const [summaryTotal, setSummaryTotal] = useState(0);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [chartData, setChartData] = useState<Record<string, string | number>[]>([]);
+  const [chartData, setChartData] = useState<ChartDataItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const currentLevel = externalState.level;
@@ -244,9 +255,9 @@ export const FinancialDetailView = ({
             <div 
               key={item.label} 
               onClick={() => {
-                setSelectedDay(item.date);
-                setSelectedMonth(item.month);
-                setSelectedYear(item.year);
+                if (item.date !== undefined) setSelectedDay(item.date);
+                if (item.month !== undefined) setSelectedMonth(item.month);
+                if (item.year !== undefined) setSelectedYear(item.year);
                 setCurrentLevel('daily');
               }}
               className="bg-white p-5 rounded-2xl shadow-sm flex justify-between items-center border border-outline-variant/5 hover:bg-surface-bright transition-colors cursor-pointer"
@@ -359,8 +370,10 @@ export const FinancialDetailView = ({
               <div 
                 key={item.day}
                 onClick={() => {
-                  setSelectedDay(item.day);
-                  setCurrentLevel('daily');
+                  if (item.day !== undefined) {
+                    setSelectedDay(item.day);
+                    setCurrentLevel('daily');
+                  }
                 }}
                 className={cn(
                   "p-4 rounded-2xl border transition-all cursor-pointer text-center",
@@ -389,8 +402,10 @@ export const FinancialDetailView = ({
               <div 
                 key={item.name}
                 onClick={() => {
-                  setSelectedMonth(item.month);
-                  setCurrentLevel('monthly');
+                  if (item.month !== undefined) {
+                    setSelectedMonth(item.month);
+                    setCurrentLevel('monthly');
+                  }
                 }}
                 className={cn(
                   "p-6 rounded-3xl border transition-all cursor-pointer flex justify-between items-center group",
