@@ -411,6 +411,11 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
         continue; // Skip this appointment if client creation fails
       }
       
+      if (!newClient?.id) {
+        console.warn(`Falha ao obter ID da nova cliente "${appt.client}"`);
+        continue;
+      }
+
       clientId = newClient.id;
       clientMap.set(normalizedName, clientId);
     }
