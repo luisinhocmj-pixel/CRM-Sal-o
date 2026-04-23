@@ -34,6 +34,7 @@ export const CLIENT_ORIGIN_OPTIONS = [
   'Facebook', 
   'TikTok', 
   'Google', 
+  'Google Maps',
   'Indicação', 
   'Passando na rua', 
   'Cliente antiga', 

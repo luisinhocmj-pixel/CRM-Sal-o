@@ -16,7 +16,7 @@ export const ClientSchema = z.object({
   total: z.string().optional(),
   img: z.string().url().optional().or(z.literal('')),
   initial: z.string().optional(),
-  origin: z.enum(['Instagram', 'Facebook', 'TikTok', 'Google', 'Indicação', 'Passando na rua', 'Cliente antiga', 'Vizinha']).optional(),
+  origin: z.enum(['Instagram', 'Facebook', 'TikTok', 'Google', 'Google Maps', 'Indicação', 'Passando na rua', 'Cliente antiga', 'Vizinha']).optional(),
   referredBy: z.string().or(z.number()).optional(),
   nextVisit: z.string().optional(),
 });
