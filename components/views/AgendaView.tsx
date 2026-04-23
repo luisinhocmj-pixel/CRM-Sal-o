@@ -175,7 +175,7 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
           )}
           
           {/* Empty slots visualization */}
-          {dayAppointments.length < 5 && dayAppointments.length > 0 && (
+          {appointments.length < 5 && appointments.length > 0 && (
             <div className="flex gap-4 md:gap-6 group opacity-40">
               <span className="w-8 md:w-10 text-right text-[10px] md:text-xs font-bold mt-3 text-slate-400">16:00</span>
               <div 
