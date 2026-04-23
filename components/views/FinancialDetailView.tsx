@@ -266,7 +266,7 @@ export const FinancialDetailView = ({
                 <span className="font-bold text-on-surface">{item.label}</span>
                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Faturamento</span>
               </div>
-              <span className="font-headline font-bold text-[#6F3BD1]">R$ {item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              <span className="font-headline font-bold text-[#6F3BD1]">R$ {(item.value ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
             </div>
           ))}
         </div>
@@ -377,12 +377,12 @@ export const FinancialDetailView = ({
                 }}
                 className={cn(
                   "p-4 rounded-2xl border transition-all cursor-pointer text-center",
-                  item.total > 0 ? "bg-primary/5 border-primary/20" : "bg-white border-outline-variant/10"
+                  (item.total ?? 0) > 0 ? "bg-primary/5 border-primary/20" : "bg-white border-outline-variant/10"
                 )}
               >
                 <span className="text-[10px] font-bold text-slate-400 block mb-1">{item.day}</span>
-                <span className={cn("font-bold text-sm", item.total > 0 ? "text-primary" : "text-on-surface-variant")}>
-                  R$ {item.total.toLocaleString('pt-BR')}
+                <span className={cn("font-bold text-sm", (item.total ?? 0) > 0 ? "text-primary" : "text-on-surface-variant")}>
+                  R$ {(item.total ?? 0).toLocaleString('pt-BR')}
                 </span>
               </div>
             );
@@ -409,13 +409,13 @@ export const FinancialDetailView = ({
                 }}
                 className={cn(
                   "p-6 rounded-3xl border transition-all cursor-pointer flex justify-between items-center group",
-                  item.total > 0 ? "bg-white border-primary/20 shadow-sm" : "bg-white border-outline-variant/10"
+                  (item.total ?? 0) > 0 ? "bg-white border-primary/20 shadow-sm" : "bg-white border-outline-variant/10"
                 )}
               >
                 <div>
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">{item.name}</span>
-                  <span className={cn("text-xl font-headline font-black", item.total > 0 ? "text-on-surface" : "text-on-surface/40")}>
-                    R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  <span className={cn("text-xl font-headline font-black", (item.total ?? 0) > 0 ? "text-on-surface" : "text-on-surface/40")}>
+                    R$ {(item.total ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
                 <div className={cn(
