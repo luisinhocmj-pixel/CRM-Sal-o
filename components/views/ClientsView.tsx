@@ -159,7 +159,7 @@ export const ClientsView = ({
                       <Settings size={18} />
                     </button>
                     <button 
-                      onClick={() => onDelete(client.id)}
+                      onClick={() => client.id && onDelete(client.id)}
                       className="p-2 hover:bg-red-50 rounded-full text-red-500 transition-colors"
                     >
                       <MoreVertical size={18} />
@@ -232,7 +232,7 @@ export const ClientsView = ({
                 <button onClick={() => onEdit(client)} className="p-2 bg-surface-container-low rounded-full text-primary">
                   <Settings size={16} />
                 </button>
-                <button onClick={() => onDelete(client.id)} className="p-2 bg-surface-container-low rounded-full text-red-500">
+                <button onClick={() => client.id && onDelete(client.id)} className="p-2 bg-surface-container-low rounded-full text-red-500">
                   <MoreVertical size={16} />
                 </button>
               </div>
