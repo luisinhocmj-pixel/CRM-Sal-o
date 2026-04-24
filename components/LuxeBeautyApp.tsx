@@ -112,31 +112,34 @@ export default function LuxeBeautyApp() {
 
     const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
       console.log(`Supabase Auth Event: ${event}`);
-      setSession(session);
+      
+      // Use functional state update to avoid dependency on current session in this callback
+      setSession(prev => {
+        if (prev?.user?.id === session?.user?.id && prev?.access_token === session?.access_token) {
+          return prev;
+        }
+        return session;
+      });
       
       const authEvent = event as string;
       if (authEvent === 'SIGNED_OUT' || authEvent === 'USER_DELETED') {
         setClients([]);
         setAppointments([]);
         setIsLoading(false);
-        handleSetView('dashboard'); // Reset to root
-      } else if (authEvent === 'TOKEN_REFRESHED') {
-        console.log('Token refreshed successfully');
-        loadData(); // Re-fetch to ensure data is fresh with new token
-      } else if (authEvent === 'SIGNED_IN' && session) {
-        loadData();
+        setView('dashboard'); 
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [handleSetView, loadData]);
+  }, []); // Remove loadData and handleSetView from dependencies
 
-  // Load data when session changes
+  // Load data when session changes - Use stable user ID as dependency
+  const userId = session?.user?.id;
   useEffect(() => {
-    if (session) {
+    if (userId) {
       loadData();
     }
-  }, [session, loadData]);
+  }, [userId, loadData]);
 
   const handleSetFinancialType = (type: string) => {
     setFinancialState({

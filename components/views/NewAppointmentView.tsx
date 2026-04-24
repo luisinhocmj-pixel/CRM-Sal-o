@@ -281,11 +281,16 @@ export const NewAppointmentView = ({ setView, clients, onSave }: NewAppointmentV
           <div className="flex items-center justify-end gap-4 mt-8">
             <button onClick={() => setView('dashboard')} className="px-8 py-4 font-bold text-primary hover:bg-primary/5 rounded-full transition-colors">Cancelar</button>
             <button 
-              disabled={isSaving || !selectedClient}
+              disabled={isSaving || !selectedClient || (selectedService === 'Outro' && customService.trim().length < 2)}
               onClick={async () => {
                 if (!selectedClient) return;
                 if (!selectedClient?.id) {
                   alert('ID da cliente não encontrado. Selecione a cliente novamente.');
+                  return;
+                }
+
+                if (selectedService === 'Outro' && customService.trim().length < 2) {
+                  alert('Por favor, digite o nome do serviço.');
                   return;
                 }
                 
@@ -309,9 +314,20 @@ export const NewAppointmentView = ({ setView, clients, onSave }: NewAppointmentV
                     await saveAppointment(apptData);
                     setView('dashboard');
                   }
-                } catch (error) {
-                  console.error('Error saving appointment:', error);
-                  alert('Erro ao salvar atendimento. Verifique a conexão.');
+                } catch (error: unknown) {
+                  console.error('Save error detail:', error);
+                  const msg = error instanceof Error ? error.message : String(error);
+                  if (msg.includes('column') && msg.includes('client_name')) {
+                    alert('🚨 ESTRUTURA FALTANDO: Sua tabela de agendamentos não tem a coluna "client_name". \n\nComo você é a dona do sistema, precisa colar o código SQL que está em "Ajustes > Dados" no seu painel do Supabase UMA VEZ. Depois disso, NUNCA MAIS precisará fazer isso.');
+                    setView('settings');
+                  } else if (msg.includes('relation') && msg.includes('exists')) {
+                    alert('🚨 TABELAS NÃO CRIADAS: A tabela "appointments" não existe no seu Supabase. \n\nClique em "Copiar Script" em Ajustes > Dados e cole no SQL Editor do Supabase.');
+                    setView('settings');
+                  } else {
+                    const errorObj = error as Record<string, unknown>;
+                    const detail = typeof errorObj?.details === 'string' ? errorObj.details : (msg || 'Verifique sua conexão ou se a cliente existe no banco.');
+                    alert('Erro ao salvar: ' + detail);
+                  }
                 } finally {
                   setIsSaving(false);
                 }

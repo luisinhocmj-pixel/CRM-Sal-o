@@ -138,6 +138,7 @@ export const checkDatabaseHealth = async (): Promise<SupabaseHealthResult> => {
     clients: false,
     appointments: false,
     salon_name_col: false,
+    client_name_col: false,
   };
 
   try {
@@ -152,11 +153,15 @@ export const checkDatabaseHealth = async (): Promise<SupabaseHealthResult> => {
     results.clients = !c.error;
     results.appointments = !a.error;
 
-    // Check specific column
-    const { error: colError } = await supabase.from('profiles').select('salon_name').limit(1);
-    results.salon_name_col = !colError;
+    // Check specific columns
+    const [col1, col2] = await Promise.all([
+      supabase.from('profiles').select('salon_name').limit(1),
+      supabase.from('appointments').select('client_name').limit(1),
+    ]);
+    results.salon_name_col = !col1.error;
+    results.client_name_col = !col2.error;
 
-    return { ok: results.profiles && results.clients && results.appointments && results.salon_name_col, details: results };
+    return { ok: results.profiles && results.clients && results.appointments && results.salon_name_col && results.client_name_col, details: results };
   } catch (err) {
     return { ok: false, details: results, error: err };
   }
@@ -416,21 +421,25 @@ export const getFinancialSummary = async (startDate: string, endDate: string, re
       .lte('date', endDate);
 
     if (error) {
-      if (retries > 0 && error.message?.includes('fetch')) {
-        await new Promise(r => setTimeout(r, 500));
+      // Retry on network errors without flooding log
+      if (retries > 0 && (error.message?.includes('fetch') || error.message?.includes('network'))) {
+        await new Promise(r => setTimeout(r, 1000 / retries));
         return getFinancialSummary(startDate, endDate, retries - 1);
       }
-      handleSupabaseError(error, 'buscar resumo financeiro');
+      
+      // For actual database errors, log once
+      console.warn(`Financial Summary [${startDate} to ${endDate}]:`, error.message);
+      return { total: 0, count: 0 };
     }
 
-    const total = (data || []).reduce((acc, curr) => acc + (curr.value || 0), 0);
+    const total = (data || []).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
     return {
       total,
       count: count || 0
     };
-  } catch (error) {
-    console.error('Financial summary error:', error);
-    return { total: 0, count: 0 }; // Return safe defaults on network error
+  } catch {
+    // Silent catch for network oscillation
+    return { total: 0, count: 0 };
   }
 };
 
@@ -441,10 +450,19 @@ export const saveAppointment = async (appointment: Appointment) => {
   if (!user) throw new Error('User not authenticated');
 
   // Validate
-  const validated = AppointmentSchema.parse({
-    ...appointment,
-    user_id: user.id
-  });
+  let validated;
+  try {
+    validated = AppointmentSchema.parse({
+      ...appointment,
+      user_id: user.id
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      const issues = err.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
+      throw new Error(`Dados inválidos: ${issues}`);
+    }
+    throw err;
+  }
 
   const { data, error } = await supabase
     .from('appointments')
