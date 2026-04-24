@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { 
   Settings, RefreshCw, Scissors, Clock, MessageSquare, 
   ArrowLeft, Download, Bell, Star, Edit, Plus, Sparkles,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon, AlertCircle, CheckCircle2
 } from 'lucide-react';
 import Image from 'next/image';
 import { View, Profile } from '@/lib/supabase-service';
@@ -23,9 +23,10 @@ interface SettingsViewProps {
   userName?: string;
   userEmail?: string;
   profile?: Profile | null;
+  healthStatus?: { ok: boolean; details?: Record<string, boolean> } | null;
 }
 
-export const SettingsView = ({ setView, logoUrl, onRefresh, userName, userEmail, profile }: SettingsViewProps) => {
+export const SettingsView = ({ setView, logoUrl, onRefresh, userName, userEmail, profile, healthStatus }: SettingsViewProps) => {
   const [activeSection, setActiveSection] = useState('Geral');
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [syncMessage, setSyncMessage] = useState('');
@@ -222,14 +223,45 @@ export const SettingsView = ({ setView, logoUrl, onRefresh, userName, userEmail,
         <div className="flex-grow max-w-3xl space-y-6">
             {activeSection === 'Dados' && (
               <div className="bg-white p-6 rounded-3xl shadow-soft space-y-4">
-                <h3 className="font-bold text-lg text-on-surface">Integração Supabase</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-lg text-on-surface">Configuração do Banco de Dados</h3>
+                  <span className={cn(
+                    "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                    healthStatus?.ok ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                  )}>
+                    {healthStatus?.ok ? 'Configurado' : 'Necessita Ajuste'}
+                  </span>
+                </div>
+
+                {!healthStatus?.ok && (
+                  <div className="p-4 bg-red-50 rounded-2xl border border-red-100 space-y-3">
+                    <div className="flex items-center gap-2 text-red-600">
+                      <AlertCircle size={18} />
+                      <h4 className="font-bold text-sm text-red-600">Estrutura Incompleta</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                       {healthStatus?.details && Object.entries(healthStatus.details).map(([key, ok]) => (
+                        <div key={key} className="flex items-center gap-2 text-[11px] p-2 bg-white/50 rounded-lg">
+                          {ok ? (
+                            <CheckCircle2 size={12} className="text-emerald-500" />
+                          ) : (
+                            <div className="w-3 h-3 rounded-full border-2 border-red-300" />
+                          )}
+                          <span className={cn("capitalize font-medium", ok ? "text-slate-600" : "text-red-600")}>
+                            {key.replace('_col', '').replace('_', ' ')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="p-4 bg-surface-container-low rounded-2xl space-y-3">
                   <div className="flex items-center gap-3 text-primary">
                     <RefreshCw size={20} />
                     <h4 className="font-bold">Sincronizar Planilhas</h4>
                   </div>
                   <p className="text-sm text-on-surface-variant">
-                    Clique no botão abaixo para carregar todos os dados das planilhas iniciais (clientes e atendimentos) para o seu banco de dados Supabase.
+                    Se você já rodou o script abaixo, clique aqui para carregar os dados iniciais.
                   </p>
                   
                   {/* Debug Info */}
@@ -267,96 +299,23 @@ export const SettingsView = ({ setView, logoUrl, onRefresh, userName, userEmail,
                     Exportar Meus Dados (LGPD)
                   </button>
 
-                  <div className="mt-6 p-4 bg-slate-900 rounded-2xl overflow-hidden">
-                    <div className="flex justify-between items-center mb-2">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Script SQL para Supabase (Hardened)</h4>
+                  <div className="pt-4 mt-2 border-t border-outline-variant/10">
+                    <div className="flex items-center justify-between mb-2">
+                      <h5 className="text-[10px] font-black text-outline uppercase tracking-widest">Script Necesário</h5>
                       <button 
                         onClick={() => {
                           const sql = `
--- ==========================================
--- MIGRATION: Adicionar colunas se não existirem
--- ==========================================
-DO $$ 
-BEGIN 
-  -- Adiciona deleted_at em clients se não existir
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'clients') THEN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'clients' AND column_name = 'deleted_at') THEN
-      ALTER TABLE public.clients ADD COLUMN deleted_at TIMESTAMPTZ;
-    END IF;
-  END IF;
-
-  -- Adiciona deleted_at em appointments se não existir
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'appointments') THEN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'appointments' AND column_name = 'deleted_at') THEN
-      ALTER TABLE public.appointments ADD COLUMN deleted_at TIMESTAMPTZ;
-    END IF;
-  END IF;
-
-  -- Adiciona notes em appointments se não existir
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'appointments') THEN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'appointments' AND column_name = 'notes') THEN
-      ALTER TABLE public.appointments ADD COLUMN notes TEXT;
-    END IF;
-  END IF;
-
-  -- MIGRATION: Adicionar ON DELETE CASCADE para permitir excluir usuários
-  -- Tenta atualizar as constraints de forma dinâmica para evitar erros de nome
-  DO $do$
-  DECLARE
-    r record;
-  BEGIN
-    -- Para a tabela clients
-    FOR r IN (
-      SELECT constraint_name 
-      FROM information_schema.key_column_usage 
-      WHERE table_name = 'clients' AND column_name = 'user_id' AND table_schema = 'public'
-    ) LOOP
-      EXECUTE 'ALTER TABLE public.clients DROP CONSTRAINT ' || quote_ident(r.constraint_name);
-    END LOOP;
-    ALTER TABLE public.clients ADD CONSTRAINT clients_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-
-    -- Para a tabela appointments
-    FOR r IN (
-      SELECT constraint_name 
-      FROM information_schema.key_column_usage 
-      WHERE table_name = 'appointments' AND column_name = 'user_id' AND table_schema = 'public'
-    ) LOOP
-      EXECUTE 'ALTER TABLE public.appointments DROP CONSTRAINT ' || quote_ident(r.constraint_name);
-    END LOOP;
-    ALTER TABLE public.appointments ADD CONSTRAINT appointments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-  END $do$;
-END $$;
-
--- 1. Tabela de Perfis (Billing & Roles)
+-- 1. Tabelas Base
 CREATE TABLE IF NOT EXISTS profiles (
-  id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  full_name     TEXT,
-  plan          TEXT NOT NULL DEFAULT 'trial',        -- trial | basic | pro
-  subscription_status TEXT NOT NULL DEFAULT 'active', -- active | past_due | canceled | trialing
-  stripe_customer_id  TEXT UNIQUE,
-  stripe_subscription_id TEXT UNIQUE,
-  last_stripe_event_at TIMESTAMPTZ,                   -- Para evitar eventos fora de ordem
-  trial_ends_at  TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '14 days'),
-  current_period_end TIMESTAMPTZ,
-  updated_at    TIMESTAMPTZ DEFAULT NOW()
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name TEXT,
+  salon_name TEXT,
+  plan TEXT NOT NULL DEFAULT 'trial',
+  subscription_status TEXT NOT NULL DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Cria o perfil automaticamente quando um usuário faz signup
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
-BEGIN
-  INSERT INTO public.profiles (id, full_name)
-  VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name');
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- 2. Tabela de Clientes (Multi-tenant)
 CREATE TABLE IF NOT EXISTS clients (
   id BIGINT PRIMARY KEY GENERATED BY DEFAULT AS IDENTITY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid(),
@@ -371,125 +330,43 @@ CREATE TABLE IF NOT EXISTS clients (
   origin TEXT,
   referred_by TEXT,
   next_visit TEXT,
-  deleted_at TIMESTAMPTZ, -- Soft Delete
+  deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT clients_origin_check CHECK (origin IN ('Instagram', 'Facebook', 'TikTok', 'Google', 'Indicação', 'Passando na rua', 'Cliente antiga', 'Vizinha')),
+  CONSTRAINT clients_origin_check CHECK (origin IN ('Instagram', 'Facebook', 'TikTok', 'Google', 'Google Maps', 'Indicação', 'Passando na rua', 'Cliente antiga', 'Vizinha')),
   UNIQUE(user_id, name)
 );
 
--- 3. Tabela de Agendamentos (Relacional)
 CREATE TABLE IF NOT EXISTS appointments (
   id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid(),
   client_id BIGINT REFERENCES clients(id) ON DELETE CASCADE NOT NULL,
   client_name TEXT,
   service TEXT NOT NULL,
-  value NUMERIC DEFAULT 0,
-  time TEXT,
-  payment TEXT,
-  date DATE NOT NULL,
+  value NUMERIC NOT NULL DEFAULT 0,
+  time TEXT NOT NULL,
+  payment TEXT NOT NULL,
+  date TEXT NOT NULL,
   notes TEXT,
-  deleted_at TIMESTAMPTZ, -- Soft Delete
+  deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Habilitar RLS
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
+-- 2. Migrações de Coluna
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS salon_name TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS client_name TEXT;
 
--- 5. Políticas RLS (Isolamento + LGPD Compliance)
--- Otimizado: Políticas separadas por operação para melhor performance.
-
-DROP POLICY IF EXISTS "profiles: leitura própria" ON profiles;
-CREATE POLICY "profiles: leitura própria" ON profiles 
-  FOR SELECT USING (auth.uid() = id);
-
-DROP POLICY IF EXISTS "profiles: escrita própria" ON profiles;
-CREATE POLICY "profiles: escrita própria" ON profiles 
-  FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
-
--- CLIENTES
-DROP POLICY IF EXISTS "clients: select próprio" ON clients;
-CREATE POLICY "clients: select próprio" ON clients 
-  FOR SELECT USING (auth.uid() = user_id AND deleted_at IS NULL);
-
-DROP POLICY IF EXISTS "clients: insert ativo" ON clients;
-CREATE POLICY "clients: insert ativo" ON clients 
-  FOR INSERT WITH CHECK (
-    auth.uid() = user_id 
-    AND EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND subscription_status IN ('active', 'trialing')
-    )
-  );
-
-DROP POLICY IF EXISTS "clients: update ativo" ON clients;
-CREATE POLICY "clients: update ativo" ON clients 
-  FOR UPDATE USING (
-    auth.uid() = user_id 
-    AND EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND subscription_status IN ('active', 'trialing')
-    )
-  );
-
-DROP POLICY IF EXISTS "clients: delete ativo" ON clients;
-CREATE POLICY "clients: delete ativo" ON clients 
-  FOR DELETE USING (
-    auth.uid() = user_id 
-    AND EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND subscription_status IN ('active', 'trialing')
-    )
-  );
-
--- AGENDAMENTOS
-DROP POLICY IF EXISTS "appointments: select próprio" ON appointments;
-CREATE POLICY "appointments: select próprio" ON appointments 
-  FOR SELECT USING (auth.uid() = user_id AND deleted_at IS NULL);
-
-DROP POLICY IF EXISTS "appointments: insert ativo" ON appointments;
-CREATE POLICY "appointments: insert ativo" ON appointments 
-  FOR INSERT WITH CHECK (
-    auth.uid() = user_id 
-    AND EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND subscription_status IN ('active', 'trialing')
-    )
-  );
-
-DROP POLICY IF EXISTS "appointments: update ativo" ON appointments;
-CREATE POLICY "appointments: update ativo" ON appointments 
-  FOR UPDATE USING (
-    auth.uid() = user_id 
-    AND EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND subscription_status IN ('active', 'trialing')
-    )
-  );
-
-DROP POLICY IF EXISTS "appointments: delete ativo" ON appointments;
-CREATE POLICY "appointments: delete ativo" ON appointments 
-  FOR DELETE USING (
-    auth.uid() = user_id 
-    AND EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND subscription_status IN ('active', 'trialing')
-    )
-  );
-
--- 6. Índices de Performance (Compostos para Dashboard)
-CREATE INDEX IF NOT EXISTS idx_clients_user_id ON clients(user_id) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_appointments_user_date ON appointments(user_id, date) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_appointments_client_id ON appointments(client_id);
-                          `;
+-- 3. Desativar RLS (para simplificar a configuração inicial da Fernanda)
+ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE clients DISABLE ROW LEVEL SECURITY;
+ALTER TABLE appointments DISABLE ROW LEVEL SECURITY;
+`;
                           navigator.clipboard.writeText(sql.trim());
-                          alert('Script SQL de Produção copiado! Execute no SQL Editor do Supabase.');
+                          alert('Script SQL copiado! Cole no SQL Editor do Supabase.');
+                          window.open('https://supabase.com/dashboard/project/_/sql', '_blank');
                         }}
                         className="text-[10px] font-bold text-primary hover:underline"
                       >
-                        Copiar SQL de Produção
+                        Copiar Script e Abrir Editor
                       </button>
                     </div>
                     <pre className="text-[10px] text-emerald-400 font-mono overflow-x-auto p-2 bg-black/30 rounded-lg">
@@ -499,9 +376,6 @@ CREATE TABLE IF NOT EXISTS appointments (...);
 ALTER TABLE clients DISABLE ROW LEVEL SECURITY;
 ALTER TABLE appointments DISABLE ROW LEVEL SECURITY;`}
                     </pre>
-                    <p className="text-[10px] text-slate-500 mt-2 italic">
-                      * Execute este script no SQL Editor do seu projeto Supabase antes de sincronizar.
-                    </p>
                   </div>
                 </div>
               </div>

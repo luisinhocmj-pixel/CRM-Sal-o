@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { z } from 'zod';
+import { User } from '@supabase/supabase-js';
 
 export { supabase };
 
@@ -49,8 +50,8 @@ export type View = 'dashboard' | 'clients' | 'appointments' | 'returns' | 'agend
 
 // --- HELPERS ---
 
-let cachedUser: any = null;
-let userPromise: Promise<any> | null = null;
+let cachedUser: User | null = null;
+let userPromise: Promise<User | null> | null = null;
 
 const getAuthenticatedUser = async () => {
   if (cachedUser) return cachedUser;
@@ -96,9 +97,13 @@ export const getProfile = async () => {
         .insert({ id: user.id, salon_name: user.user_metadata?.name || user.email?.split('@')[0] || 'Meu Salão' })
         .select()
         .single();
-      if (createError) return null;
+      if (createError) {
+        console.error('getProfile create profile error:', createError);
+        return null;
+      }
       return newProfile as Profile;
     }
+    console.warn('getProfile unexpected error:', error);
     return null;
   }
   return data as Profile;
@@ -117,6 +122,44 @@ export const updateProfile = async (salonName: string) => {
 
   if (error) handleSupabaseError(error, 'atualizar perfil');
   return data as Profile;
+};
+
+export interface SupabaseHealthResult {
+  ok: boolean;
+  details: Record<string, boolean>;
+  error?: unknown;
+}
+
+export const checkDatabaseHealth = async (): Promise<SupabaseHealthResult> => {
+  if (!supabase) return { ok: false, details: {}, error: 'Supabase não inicializado' };
+  
+  const results: Record<string, boolean> = {
+    profiles: false,
+    clients: false,
+    appointments: false,
+    salon_name_col: false,
+  };
+
+  try {
+    // Check tables
+    const [p, c, a] = await Promise.all([
+      supabase.from('profiles').select('id').limit(1),
+      supabase.from('clients').select('id').limit(1),
+      supabase.from('appointments').select('id').limit(1),
+    ]);
+
+    results.profiles = !p.error || p.error.code !== 'PGRST116';
+    results.clients = !c.error;
+    results.appointments = !a.error;
+
+    // Check specific column
+    const { error: colError } = await supabase.from('profiles').select('salon_name').limit(1);
+    results.salon_name_col = !colError;
+
+    return { ok: results.profiles && results.clients && results.appointments && results.salon_name_col, details: results };
+  } catch (err) {
+    return { ok: false, details: results, error: err };
+  }
 };
 
 const handleSupabaseError = (error: unknown, context: string) => {
@@ -171,7 +214,10 @@ export const getClients = async (page = 1, pageSize = 20, search = '') => {
     .order('name', { ascending: true })
     .range(from, to);
   
-  if (error) throw error;
+  if (error) {
+    console.error('getClients Supabase error:', error);
+    throw error;
+  }
   
   const clients = (data || []).map(c => ({
     id: c.id,
@@ -232,26 +278,29 @@ export const createClient = async (client: Partial<Client>) => {
 
 export const updateClient = async (id: number, client: Partial<Client>) => {
   if (!supabase) throw new Error('Supabase not initialized');
+  
+  // Mapeamento de campos para o banco (snake_case)
+  const updateData: Record<string, string | number | null> = {};
+  if (client.name !== undefined) updateData.name = client.name;
+  if (client.phone !== undefined) updateData.phone = client.phone;
+  if (client.status !== undefined) updateData.status = client.status;
+  if (client.lastVisit !== undefined) updateData.last_visit = client.lastVisit;
+  if (client.service !== undefined) updateData.service = client.service;
+  if (client.total !== undefined) updateData.total = client.total;
+  if (client.img !== undefined) updateData.img = client.img;
+  if (client.initial !== undefined) updateData.initial = client.initial;
+  if (client.origin !== undefined) updateData.origin = client.origin;
+  if (client.referredBy !== undefined) updateData.referred_by = String(client.referredBy || '');
+  if (client.nextVisit !== undefined) updateData.next_visit = client.nextVisit;
+
   const { data, error } = await supabase
     .from('clients')
-    .update({
-      name: client.name,
-      phone: client.phone,
-      status: client.status,
-      last_visit: client.lastVisit,
-      service: client.service,
-      total: client.total,
-      img: client.img,
-      initial: client.initial,
-      origin: client.origin,
-      referred_by: String(client.referredBy || ''),
-      next_visit: client.nextVisit
-    })
+    .update(updateData)
     .eq('id', id)
     .select()
     .single();
   
-  if (error) throw error;
+  if (error) handleSupabaseError(error, 'atualizar cliente');
   return data as Client;
 };
 
@@ -331,7 +380,10 @@ export const getAppointments = async (options: GetAppointmentsOptions = {}) => {
     .order('time', { ascending: true })
     .range(from, to);
 
-  if (error) throw error;
+  if (error) {
+    console.error('getAppointments Supabase error:', error);
+    throw error;
+  }
   
   const appointments = (data || []).map(a => ({
     id: a.id,
@@ -410,7 +462,10 @@ export const saveAppointment = async (appointment: Appointment) => {
     .select()
     .single();
   
-  if (error) handleSupabaseError(error, 'salvar agendamento');
+  if (error) {
+    console.error('saveAppointment error detail:', JSON.stringify(error, null, 2));
+    handleSupabaseError(error, 'salvar agendamento');
+  }
   return data as Appointment;
 };
 

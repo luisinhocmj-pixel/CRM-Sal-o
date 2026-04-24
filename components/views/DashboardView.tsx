@@ -18,9 +18,10 @@ interface DashboardViewProps {
   clients: Client[];
   setFinancialType: (t: string) => void;
   userName?: string;
+  healthStatus?: { ok: boolean; details?: Record<string, boolean> } | null;
 }
 
-export const DashboardView = ({ setView, clients, setFinancialType, userName }: DashboardViewProps) => {
+export const DashboardView = ({ setView, clients, setFinancialType, userName, healthStatus }: DashboardViewProps) => {
   const [financials, setFinancials] = useState({
     daily: 0,
     weekly: 0,
@@ -31,7 +32,7 @@ export const DashboardView = ({ setView, clients, setFinancialType, userName }: 
 
   const now = useMemo(() => new Date(), []);
   const currentDate = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-
+  
   useEffect(() => {
     const fetchFinancials = async () => {
       setLoadingFinancials(true);
@@ -98,12 +99,29 @@ export const DashboardView = ({ setView, clients, setFinancialType, userName }: 
       animate={{ opacity: 1, y: 0 }}
       className="p-4 md:p-8 space-y-6 md:space-y-10 pb-24 md:pb-8"
     >
+      {healthStatus && !healthStatus.ok && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 text-red-700">
+            <AlertCircle size={24} />
+            <div>
+              <p className="font-bold text-sm">Banco de dados desconfigurado</p>
+              <p className="text-xs">Algumas funcionalidades podem não funcionar corretamente.</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setView('settings')}
+            className="px-4 py-2 bg-red-600 text-white rounded-full text-xs font-bold hover:bg-red-700 transition-colors"
+          >
+            Configurar Agora
+          </button>
+        </div>
+      )}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h2 className="font-headline text-2xl md:text-4xl font-extrabold text-on-surface tracking-tight">
             Bom dia, <span className="text-brand-gradient">{userName || 'Especialista'}</span>.
           </h2>
-          <p className="text-on-surface-variant font-medium mt-1 text-sm md:text-base">Aqui está o resumo da sua estética hoje.</p>
+          <p className="text-on-surface-variant font-medium mt-1 text-sm md:text-base">Aqui está o resumo do seu negócio hoje.</p>
         </div>
         <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-outline-variant/10 w-fit">
           <CalendarDays size={16} className="text-[#6F3BD1]" />
@@ -172,13 +190,15 @@ export const DashboardView = ({ setView, clients, setFinancialType, userName }: 
         <div className="lg:col-span-8 space-y-8">
           {/* Strategic Insights Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-2xl shadow-soft border border-outline-variant/5 flex items-center gap-4 min-w-0">
+            <div className="bg-white p-5 rounded-2xl shadow-soft border border-outline-variant/5 flex items-center gap-4 min-w-0 overflow-hidden h-[88px]">
               <div className="p-3 bg-amber-50 text-amber-600 rounded-xl shrink-0">
                 <Award size={20} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] uppercase font-bold text-outline tracking-widest truncate">Top Referenciador</p>
-                <p className="font-bold text-on-surface truncate pr-1">{topReferrers[0]?.name || 'Ninguém ainda'}</p>
+                <p className="text-[10px] uppercase font-bold text-outline tracking-widest truncate mb-0.5">Referenciador Top</p>
+                <p className="font-bold text-on-surface truncate pr-2 text-sm sm:text-base">
+                  {topReferrers[0]?.name || 'Ninguém ainda'}
+                </p>
               </div>
             </div>
             <div className="bg-white p-5 rounded-2xl shadow-soft border border-outline-variant/5 flex items-center gap-4 min-w-0">

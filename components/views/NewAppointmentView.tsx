@@ -284,6 +284,11 @@ export const NewAppointmentView = ({ setView, clients, onSave }: NewAppointmentV
               disabled={isSaving || !selectedClient}
               onClick={async () => {
                 if (!selectedClient) return;
+                if (!selectedClient?.id) {
+                  alert('ID da cliente não encontrado. Selecione a cliente novamente.');
+                  return;
+                }
+                
                 setIsSaving(true);
                 try {
                   const val = Number(serviceValue.replace(',', '.'));

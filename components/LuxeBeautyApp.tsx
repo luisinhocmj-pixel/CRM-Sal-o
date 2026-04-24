@@ -23,6 +23,7 @@ import * as supabaseService from '@/lib/supabase-service';
 
 export default function LuxeBeautyApp() {
   const [view, setView] = useState<View>('dashboard');
+  const [healthStatus, setHealthStatus] = useState<{ ok: boolean; details?: Record<string, boolean> } | null>(null);
   const [, setViewHistory] = useState<View[]>(['dashboard']);
   const [clients, setClients] = useState<Client[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -72,17 +73,25 @@ export default function LuxeBeautyApp() {
   const loadData = React.useCallback(async () => {
     if (!session) return;
     try {
-      const [clientsRes, appointmentsRes, profileRes] = await Promise.all([
+      const [clientsRes, appointmentsRes, profileRes, health] = await Promise.all([
         supabaseService.getClients(1, 100), // Get first 100 for dashboard/agenda
         supabaseService.getAppointments({ pageSize: 100 }),
-        supabaseService.getProfile()
+        supabaseService.getProfile(),
+        supabaseService.checkDatabaseHealth()
       ]);
       
+      setHealthStatus(health);
       if (clientsRes.data) setClients(clientsRes.data);
       if (appointmentsRes.data) setAppointments(appointmentsRes.data);
       if (profileRes) setProfile(profileRes);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading data:', error);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      // Check if it's a "relation does not exist" error (code 42P01 in Postgres, but Supabase might wrap it)
+      if (errMsg.includes('relation') || errMsg.includes('does not exist')) {
+        console.warn('Database tables missing. Prompting user to run setup.');
+        // We can show a state or toast here
+      }
     } finally {
       setIsLoading(false);
     }
@@ -163,7 +172,7 @@ export default function LuxeBeautyApp() {
       }).catch(err => console.error('Silent failure creating calendar event:', err));
       
       // Update client stats in the local state for immediate feedback
-      const client = clients.find(c => c.id === apptData.client_id);
+      const client = clients.find(c => c.id == apptData.client_id);
       if (client) {
         const currentTotal = parseFloat(client.total?.replace('R$ ', '').replace('.', '').replace(',', '.') || '0') || 0;
         const newTotal = currentTotal + apptData.value;
@@ -235,6 +244,7 @@ export default function LuxeBeautyApp() {
             setView={handleSetView}
             setFinancialType={handleSetFinancialType}
             userName={profile?.salon_name || session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0]}
+            healthStatus={healthStatus}
           />
         );
       case 'clients':
@@ -260,6 +270,7 @@ export default function LuxeBeautyApp() {
             userName={profile?.salon_name || session?.user?.user_metadata?.name || session?.user?.email?.split('@')[0]}
             userEmail={session?.user?.email}
             profile={profile}
+            healthStatus={healthStatus}
           />
         );
       case 'client-detail':
