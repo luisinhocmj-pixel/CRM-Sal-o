@@ -50,6 +50,51 @@ export type View = 'dashboard' | 'clients' | 'appointments' | 'returns' | 'agend
 
 // --- HELPERS ---
 
+const handleSupabaseError = (error: unknown, context: string) => {
+  let message = 'Erro desconhecido';
+  let status = 500;
+
+  if (error instanceof Error) {
+    message = error.message;
+  } else if (typeof error === 'object' && error !== null) {
+    const errObj = error as Record<string, unknown>;
+    message = typeof errObj.message === 'string' ? errObj.message : 'Erro desconhecido';
+    status = typeof errObj.status === 'number' ? errObj.status : 500;
+  }
+
+  // Se o erro for um objeto vazio {} mas ainda for um erro
+  if (message === 'Erro desconhecido' && typeof error === 'object') {
+    try {
+      const stringified = JSON.stringify(error);
+      if (stringified === '{}') {
+        message = 'Permissão negada (RLS) ou erro de conexão';
+      } else {
+        message = stringified;
+      }
+    } catch {
+      message = 'Erro estrutural no banco de dados';
+    }
+  }
+
+  console.error(`Supabase Error [${context}]:`, error);
+  
+  if (status === 402) {
+    message = 'Assinatura necessária para realizar esta ação.';
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('billing-required'));
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    // Only dispatch if it's not a background fetch oscillation
+    if (!message.includes('fetch') && !message.includes('network')) {
+      window.dispatchEvent(new CustomEvent('app-error', { detail: { message, context, status } }));
+    }
+  }
+  
+  throw new Error(`Erro ao ${context}: ${message}`);
+};
+
 let cachedUser: User | null = null;
 let userPromise: Promise<User | null> | null = null;
 
@@ -98,7 +143,7 @@ export const getProfile = async () => {
         .select()
         .single();
       if (createError) {
-        console.error('getProfile create profile error:', createError);
+        handleSupabaseError(createError, 'criar perfil inicial');
         return null;
       }
       return newProfile as Profile;
@@ -167,80 +212,68 @@ export const checkDatabaseHealth = async (): Promise<SupabaseHealthResult> => {
   }
 };
 
-const handleSupabaseError = (error: unknown, context: string) => {
-  let message = 'Erro desconhecido';
-  let status = 500;
-
-  if (error instanceof Error) {
-    message = error.message;
-  } else if (typeof error === 'object' && error !== null) {
-    const errObj = error as Record<string, unknown>;
-    message = typeof errObj.message === 'string' ? errObj.message : 'Erro desconhecido';
-    status = typeof errObj.status === 'number' ? errObj.status : 500;
-  }
-
-  console.error(`Supabase Error [${context}]:`, error);
-  
-  // Se o erro for 402 (Payment Required), redirecionamos ou avisamos
-  if (status === 402) {
-    message = 'Assinatura necessária para realizar esta ação.';
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('billing-required'));
-    }
-  }
-
-  // Disparamos um evento customizado para que a UI possa reagir globalmente
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('app-error', { detail: { message, context, status } }));
-  }
-  
-  throw new Error(`Erro ao ${context}: ${message}`);
-};
-
-export const getClients = async (page = 1, pageSize = 20, search = '') => {
+export const getClients = async (page = 1, pageSize = 20, search = '', retries = 2): Promise<{ data: Client[]; count: number }> => {
   if (!supabase) return { data: [], count: 0 };
   
-  const user = await getAuthenticatedUser();
-  if (!user) return { data: [], count: 0 };
+  try {
+    const user = await getAuthenticatedUser();
+    if (!user) return { data: [], count: 0 };
 
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
-  let query = supabase
-    .from('clients')
-    .select('*', { count: 'exact' })
-    .eq('user_id', user.id);
+    let query = supabase
+      .from('clients')
+      .select('*', { count: 'exact' })
+      .eq('user_id', user.id);
 
-  if (search) {
-    query = query.ilike('name', `%${search}%`);
+    if (search) {
+      query = query.ilike('name', `%${search}%`);
+    }
+
+    const { data, error, count } = await query
+      .order('name', { ascending: true })
+      .range(from, to);
+    
+    if (error) {
+      if (retries > 0 && (error.message?.includes('fetch') || error.message?.includes('network'))) {
+        console.warn(`Retry getClients (${retries}): ${error.message}`);
+        await new Promise(r => setTimeout(r, 1000));
+        return getClients(page, pageSize, search, retries - 1);
+      }
+      console.error('getClients Supabase error:', error);
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      console.log(`getClients: Nenhum resultado para o usuário ${user.id} (Busca: "${search}")`);
+    }
+    
+    const clients = (data || []).map(c => ({
+      id: c.id,
+      user_id: c.user_id,
+      name: c.name,
+      phone: c.phone,
+      status: c.status,
+      lastVisit: c.last_visit,
+      service: c.service,
+      total: c.total,
+      img: c.img,
+      initial: c.initial,
+      origin: c.origin,
+      referredBy: c.referred_by,
+      nextVisit: c.next_visit
+    })) as Client[];
+
+    return { data: clients, count: count || 0 };
+  } catch (err) {
+    console.error('getClients fatal error:', err);
+    if (retries > 0) {
+      await new Promise(r => setTimeout(r, 1000));
+      return getClients(page, pageSize, search, retries - 1);
+    }
+    throw err;
   }
-
-  const { data, error, count } = await query
-    .order('name', { ascending: true })
-    .range(from, to);
-  
-  if (error) {
-    console.error('getClients Supabase error:', error);
-    throw error;
-  }
-  
-  const clients = (data || []).map(c => ({
-    id: c.id,
-    user_id: c.user_id,
-    name: c.name,
-    phone: c.phone,
-    status: c.status,
-    lastVisit: c.last_visit,
-    service: c.service,
-    total: c.total,
-    img: c.img,
-    initial: c.initial,
-    origin: c.origin,
-    referredBy: c.referred_by,
-    nextVisit: c.next_visit
-  })) as Client[];
-
-  return { data: clients, count: count || 0 };
 };
 
 export const createClient = async (client: Partial<Client>) => {
@@ -302,6 +335,7 @@ export const updateClient = async (id: number, client: Partial<Client>) => {
     .from('clients')
     .update(updateData)
     .eq('id', id)
+    .eq('user_id', (await getAuthenticatedUser())?.id)
     .select()
     .single();
   
@@ -356,57 +390,69 @@ export interface GetAppointmentsOptions {
   pageSize?: number;
 }
 
-export const getAppointments = async (options: GetAppointmentsOptions = {}) => {
+export const getAppointments = async (options: GetAppointmentsOptions = {}, retries = 2): Promise<{ data: Appointment[]; count: number }> => {
   if (!supabase) return { data: [], count: 0 };
   
-  const user = await getAuthenticatedUser();
-  if (!user) return { data: [], count: 0 };
+  try {
+    const user = await getAuthenticatedUser();
+    if (!user) return { data: [], count: 0 };
 
-  const { date, startDate, endDate, page = 1, pageSize = 50 } = options;
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
+    const { date, startDate, endDate, page = 1, pageSize = 50 } = options;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
-  let query = supabase
-    .from('appointments')
-    .select('*', { count: 'exact' })
-    .eq('user_id', user.id);
-  
-  if (date) {
-    query = query.eq('date', date);
-  } else if (startDate && endDate) {
-    query = query.gte('date', startDate).lte('date', endDate);
-  } else if (startDate) {
-    query = query.gte('date', startDate);
-  } else if (endDate) {
-    query = query.lte('date', endDate);
+    let query = supabase
+      .from('appointments')
+      .select('*', { count: 'exact' })
+      .eq('user_id', user.id);
+    
+    if (date) {
+      query = query.eq('date', date);
+    } else if (startDate && endDate) {
+      query = query.gte('date', startDate).lte('date', endDate);
+    } else if (startDate) {
+      query = query.gte('date', startDate);
+    } else if (endDate) {
+      query = query.lte('date', endDate);
+    }
+
+    const { data, error, count } = await query
+      .order('time', { ascending: true })
+      .range(from, to);
+
+    if (error) {
+      if (retries > 0 && (error.message?.includes('fetch') || error.message?.includes('network'))) {
+        await new Promise(r => setTimeout(r, 1000));
+        return getAppointments(options, retries - 1);
+      }
+      console.error('getAppointments Supabase error:', error);
+      throw error;
+    }
+    
+    const appointments = (data || []).map(a => ({
+      id: a.id,
+      user_id: a.user_id,
+      client_id: a.client_id,
+      client_name: a.client_name,
+      service: a.service,
+      value: a.value,
+      time: a.time,
+      payment: a.payment,
+      date: a.date,
+      notes: a.notes
+    })) as Appointment[];
+
+    return { data: appointments, count: count || 0 };
+  } catch (err) {
+    if (retries > 0) {
+      await new Promise(r => setTimeout(r, 1000));
+      return getAppointments(options, retries - 1);
+    }
+    throw err;
   }
-
-  const { data, error, count } = await query
-    .order('time', { ascending: true })
-    .range(from, to);
-
-  if (error) {
-    console.error('getAppointments Supabase error:', error);
-    throw error;
-  }
-  
-  const appointments = (data || []).map(a => ({
-    id: a.id,
-    user_id: a.user_id,
-    client_id: a.client_id,
-    client_name: a.client_name,
-    service: a.service,
-    value: a.value,
-    time: a.time,
-    payment: a.payment,
-    date: a.date,
-    notes: a.notes
-  })) as Appointment[];
-
-  return { data: appointments, count: count || 0 };
 };
 
-export const getFinancialSummary = async (startDate: string, endDate: string, retries = 2) => {
+export const getFinancialSummary = async (startDate: string, endDate: string, retries = 2): Promise<{ total: number; count: number }> => {
   if (!supabase) return { total: 0, count: 0 };
 
   try {

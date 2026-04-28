@@ -31,13 +31,14 @@ export const DashboardView = ({ setView, clients, setFinancialType, userName, he
   const [loadingFinancials, setLoadingFinancials] = useState(true);
 
   const now = useMemo(() => new Date(), []);
-  const currentDate = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const today = useMemo(() => format(now, 'yyyy-MM-dd'), [now]);
+  const currentDate = useMemo(() => now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }), [now]);
   
   useEffect(() => {
     const fetchFinancials = async () => {
       setLoadingFinancials(true);
       try {
-        const todayStr = format(now, 'yyyy-MM-dd');
+        const todayStr = today;
         
         const weekStart = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
         const weekEnd = format(endOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
@@ -50,9 +51,9 @@ export const DashboardView = ({ setView, clients, setFinancialType, userName, he
 
         const [daily, weekly, monthly, yearly] = await Promise.all([
           getFinancialSummary(todayStr, todayStr),
-          new Promise(r => setTimeout(r, 100)).then(() => getFinancialSummary(weekStart, weekEnd)),
-          new Promise(r => setTimeout(r, 200)).then(() => getFinancialSummary(monthStart, monthEnd)),
-          new Promise(r => setTimeout(r, 300)).then(() => getFinancialSummary(yearStart, yearEnd))
+          getFinancialSummary(weekStart, weekEnd),
+          getFinancialSummary(monthStart, monthEnd),
+          getFinancialSummary(yearStart, yearEnd)
         ]);
 
         setFinancials({
@@ -69,7 +70,7 @@ export const DashboardView = ({ setView, clients, setFinancialType, userName, he
     };
 
     fetchFinancials();
-  }, [now]);
+  }, [today, now]);
 
   const financialCards = [
     { id: 'daily', label: 'Ganho Diário', value: financials.daily, change: financials.daily > 0 ? '+100%' : '0%', icon: CreditCard, color: 'primary', sub: 'Hoje' },

@@ -303,7 +303,15 @@ export default function LuxeBeautyApp() {
       case 'notifications':
         return <NotificationsView setView={handleSetView} onSelectClient={handleSelectClient} clients={clients} />;
       default:
-        return <DashboardView clients={clients} setView={handleSetView} setFinancialType={handleSetFinancialType} />;
+        return (
+          <DashboardView 
+            clients={clients} 
+            setView={handleSetView} 
+            setFinancialType={handleSetFinancialType} 
+            userName={profile?.salon_name}
+            healthStatus={healthStatus}
+          />
+        );
     }
   };
 
