@@ -8,7 +8,7 @@ import {
 import Image from 'next/image';
 import { View, Client, saveAppointment, Appointment } from '@/lib/supabase-service';
 import { HAIR_SERVICES, PAYMENT_METHODS } from '@/lib/constants';
-import { cn } from '@/lib/utils';
+import { cn, getAvatarUrl } from '@/lib/utils';
 
 interface NewAppointmentViewProps {
   setView: (v: View | 'back') => void;
@@ -44,6 +44,11 @@ export const NewAppointmentView = ({ setView, clients, onSave }: NewAppointmentV
     setClientSearch('');
     setIsSearching(false);
   };
+
+  const avatarUrl = useMemo(() => {
+    if (!selectedClient) return '';
+    return selectedClient.img || getAvatarUrl(selectedClient.name);
+  }, [selectedClient]);
 
   const handlePresetClick = (days: number) => {
     const baseDate = appointmentDate ? new Date(appointmentDate) : new Date();
@@ -99,8 +104,16 @@ export const NewAppointmentView = ({ setView, clients, onSave }: NewAppointmentV
                               onClick={() => handleSelectClient(client)}
                               className="w-full flex items-center gap-3 p-3 hover:bg-surface-container-low rounded-xl transition-colors text-left"
                             >
-                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                                {client.initial || client.name[0]}
+                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold overflow-hidden relative">
+                                <Image 
+                                  src={client.img || getAvatarUrl(client.name)} 
+                                  alt={client.name} 
+                                  fill 
+                                  sizes="40px" 
+                                  className="object-cover" 
+                                  referrerPolicy="no-referrer"
+                                  unoptimized
+                                />
                               </div>
                               <div>
                                 <p className="font-bold text-sm text-on-surface">{client.name}</p>
@@ -130,8 +143,16 @@ export const NewAppointmentView = ({ setView, clients, onSave }: NewAppointmentV
             ) : (
               <div className="flex items-center justify-between p-4 bg-primary/5 rounded-2xl border border-primary/10 mb-8">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-xl">
-                    {selectedClient.initial || selectedClient.name[0]}
+                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-black text-xl overflow-hidden relative">
+                    <Image 
+                      src={avatarUrl} 
+                      alt={selectedClient.name} 
+                      fill 
+                      sizes="48px" 
+                      className="object-cover" 
+                      referrerPolicy="no-referrer"
+                      unoptimized
+                    />
                   </div>
                   <div>
                     <h4 className="font-bold text-on-surface">{selectedClient.name}</h4>
@@ -350,11 +371,14 @@ export const NewAppointmentView = ({ setView, clients, onSave }: NewAppointmentV
               <>
                 <div className="p-8 text-center bg-surface-container-low/50">
                   <div className="w-24 h-24 rounded-full border-4 border-white shadow-md mx-auto relative overflow-hidden mb-4 bg-primary/10 flex items-center justify-center text-primary font-black text-3xl">
-                    {selectedClient.img ? (
-                      <Image src={selectedClient.img} alt={selectedClient.name} fill className="object-cover" referrerPolicy="no-referrer" />
-                    ) : (
-                      selectedClient.initial || selectedClient.name[0]
-                    )}
+                    <Image 
+                      src={avatarUrl} 
+                      alt={selectedClient.name} 
+                      fill 
+                      className="object-cover" 
+                      referrerPolicy="no-referrer"
+                      unoptimized
+                    />
                   </div>
                   <h4 className="font-headline font-extrabold text-xl text-on-surface">{selectedClient.name}</h4>
                   <p className="text-sm text-outline font-medium">Cliente {selectedClient.status}</p>

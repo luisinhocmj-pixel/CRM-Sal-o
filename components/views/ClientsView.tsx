@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { PlusCircle, Settings, MoreVertical, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { Client, View, getClients } from '@/lib/supabase-service';
-import { cn } from '@/lib/utils';
+import { cn, getAvatarUrl } from '@/lib/utils';
 
 interface ClientsViewProps {
   setView: (v: View | 'back') => void;
@@ -125,7 +125,15 @@ export const ClientsView = ({
                 <td className="px-6 py-5 cursor-pointer" onClick={() => onSelectClient(client)}>
                   <div className="flex items-center gap-4">
                     <div className="relative w-12 h-12 flex-shrink-0">
-                      <Image src={client.img || `https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}&gender=female`} alt={client.name} fill sizes="48px" className="rounded-full object-cover" referrerPolicy="no-referrer" />
+                      <Image 
+                        src={client.img || getAvatarUrl(client.name)} 
+                        alt={client.name} 
+                        fill 
+                        sizes="48px" 
+                        className="rounded-full object-cover" 
+                        referrerPolicy="no-referrer"
+                        unoptimized
+                      />
                     </div>
                     <div className="flex flex-col">
                       <span className="font-bold text-on-surface">{client.name}</span>
@@ -208,7 +216,15 @@ export const ClientsView = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3" onClick={() => onSelectClient(client)}>
                 <div className="relative w-12 h-12 flex-shrink-0">
-                  <Image src={client.img || `https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}&gender=female`} alt={client.name} fill sizes="48px" className="rounded-full object-cover" referrerPolicy="no-referrer" />
+                  <Image 
+                    src={client.img || getAvatarUrl(client.name)} 
+                    alt={client.name} 
+                    fill 
+                    sizes="48px" 
+                    className="rounded-full object-cover" 
+                    referrerPolicy="no-referrer"
+                    unoptimized
+                  />
                 </div>
                 <div className="flex flex-col">
                   <span className="font-bold text-on-surface text-sm">{client.name}</span>

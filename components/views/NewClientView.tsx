@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Client, View } from '@/lib/supabase-service';
 import { CLIENT_STATUS_OPTIONS, CLIENT_ORIGIN_OPTIONS } from '@/lib/constants';
+import { getAvatarUrl } from '@/lib/utils';
+import Image from 'next/image';
 
 interface NewClientViewProps {
   setView: (v: View | 'back') => void;
@@ -66,6 +68,25 @@ export const NewClientView = ({
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 md:p-10 shadow-soft border border-white space-y-8">
+        {/* Avatar Preview */}
+        <div className="flex flex-col items-center justify-center space-y-4 pb-4 border-b border-surface-container-high/50">
+          <div className="relative w-32 h-32 rounded-full p-1 bg-brand-gradient">
+            <div className="w-full h-full rounded-full border-4 border-white overflow-hidden relative bg-slate-50 flex items-center justify-center">
+              <Image 
+                src={formData.img || getAvatarUrl(formData.name)} 
+                alt="Avatar Preview" 
+                fill 
+                className="object-cover"
+                referrerPolicy="no-referrer"
+                unoptimized
+              />
+            </div>
+          </div>
+          <p className="text-[10px] uppercase font-bold text-outline tracking-wider italic">
+            O avatar é gerado automaticamente baseado no nome
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="block text-xs font-bold text-outline uppercase tracking-widest mb-1 ml-1">Nome Completo</label>

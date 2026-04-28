@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { Client, View, Appointment } from '@/lib/supabase-service';
-import { cn } from '@/lib/utils';
+import { cn, getAvatarUrl } from '@/lib/utils';
 
 interface ClientDetailViewProps {
   setView: (v: View | 'back') => void;
@@ -106,7 +106,15 @@ export const ClientDetailView = ({
         <div className="lg:col-span-4 bg-white p-6 md:p-8 rounded-3xl shadow-soft flex flex-col items-center text-center space-y-4">
           <div className="w-32 h-32 md:w-40 md:h-40 rounded-full p-1 bg-brand-gradient relative">
             <div className="w-full h-full rounded-full border-4 border-white overflow-hidden relative">
-              <Image src={client.img || `https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}&gender=female`} alt={client.name} fill sizes="(max-width: 768px) 128px, 160px" className="object-cover" referrerPolicy="no-referrer" />
+              <Image 
+                src={client.img || getAvatarUrl(client.name)} 
+                alt={client.name} 
+                fill 
+                sizes="(max-width: 768px) 128px, 160px" 
+                className="object-cover" 
+                referrerPolicy="no-referrer"
+                unoptimized
+              />
             </div>
             <span className="absolute bottom-2 right-2 bg-[#fe9cbb] text-[#7a2f4b] text-[10px] font-bold px-3 py-1 rounded-full border-2 border-white shadow-sm uppercase">{client.status}</span>
           </div>

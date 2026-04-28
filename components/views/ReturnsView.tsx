@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { Send, CalendarDays, AlertCircle, Clock, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { Client, View } from '@/lib/supabase-service';
-import { cn } from '@/lib/utils';
+import { cn, getAvatarUrl } from '@/lib/utils';
 import { getClientStatusMetrics, generateWhatsAppMessage } from '@/lib/automation-utils';
 import { differenceInDays, parse } from 'date-fns';
 
@@ -68,7 +68,14 @@ export const ReturnsView = ({ setView, onSelectClient, clients }: ReturnsViewPro
             <div className="flex justify-between items-start mb-6">
               <div className="flex items-center gap-4 cursor-pointer" onClick={() => onSelectClient(ret)}>
                 <div className="relative w-14 h-14 md:w-16 md:h-16">
-                  <Image src={ret.img || `https://api.dicebear.com/7.x/avataaars/svg?seed=${ret.name}&gender=female`} alt={ret.name} fill className="rounded-2xl object-cover shadow-md" referrerPolicy="no-referrer" />
+                  <Image 
+                    src={ret.img || getAvatarUrl(ret.name)} 
+                    alt={ret.name} 
+                    fill 
+                    className="rounded-2xl object-cover shadow-md" 
+                    referrerPolicy="no-referrer"
+                    unoptimized
+                  />
                 </div>
                 <div>
                   <h4 className="font-bold text-base md:text-lg text-on-surface">{ret.name}</h4>

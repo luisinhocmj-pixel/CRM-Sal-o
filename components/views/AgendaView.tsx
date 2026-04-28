@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Calendar, ChevronLeft, ChevronRight, Clock, User, AlertCircle, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { Client, View, Appointment, getAppointments } from '@/lib/supabase-service';
-import { cn } from '@/lib/utils';
+import { cn, getAvatarUrl } from '@/lib/utils';
 import { BRAZIL_HOLIDAYS_2026 } from '@/lib/constants';
 import { format } from 'date-fns';
 
@@ -146,7 +146,15 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-3">
                         <div className="relative w-8 h-8 rounded-full overflow-hidden bg-slate-200">
-                          <Image src={client?.img || `https://api.dicebear.com/7.x/avataaars/svg?seed=${app.client_name}&gender=female`} alt={app.client_name} fill sizes="32px" className="object-cover" referrerPolicy="no-referrer" />
+                          <Image 
+                            src={client?.img || getAvatarUrl(app.client_name)} 
+                            alt={app.client_name} 
+                            fill 
+                            sizes="32px" 
+                            className="object-cover" 
+                            referrerPolicy="no-referrer"
+                            unoptimized
+                          />
                         </div>
                         <div>
                           <h4 className="font-bold text-on-surface text-sm md:text-base">{app.client_name}</h4>
@@ -324,7 +332,15 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3 cursor-pointer" onClick={() => onSelectClient(client)}>
                   <div className="relative w-10 h-10">
-                    <Image src={client.img || `https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}&gender=female`} alt={client.name} fill sizes="40px" className="rounded-full object-cover" referrerPolicy="no-referrer" />
+                    <Image 
+                      src={client.img || getAvatarUrl(client.name)} 
+                      alt={client.name} 
+                      fill 
+                      sizes="40px" 
+                      className="rounded-full object-cover" 
+                      referrerPolicy="no-referrer"
+                      unoptimized
+                    />
                   </div>
                   <div>
                     <h3 className="font-bold text-on-surface text-sm">{client.name}</h3>

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { Client, View, Appointment, getFinancialSummary, getAppointments } from '@/lib/supabase-service';
-import { cn } from '@/lib/utils';
+import { cn, getAvatarUrl } from '@/lib/utils';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
@@ -206,7 +206,14 @@ export const FinancialDetailView = ({
             >
               <div className="flex items-center gap-4">
                 <div className="relative w-12 h-12">
-                  <Image src={client?.img || `https://api.dicebear.com/7.x/avataaars/svg?seed=${apt.client_name}&gender=female`} alt={apt.client_name} fill className="rounded-full object-cover border-2 border-white shadow-sm" referrerPolicy="no-referrer" />
+                  <Image 
+                    src={client?.img || getAvatarUrl(apt.client_name)} 
+                    alt={apt.client_name} 
+                    fill 
+                    className="rounded-full object-cover border-2 border-white shadow-sm" 
+                    referrerPolicy="no-referrer"
+                    unoptimized
+                  />
                 </div>
                 <div>
                   <p className="font-bold text-on-surface group-hover:text-primary transition-colors">{apt.client_name}</p>
