@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Send, CalendarDays, AlertCircle, Clock, MessageSquare } from 'lucide-react';
+import { Send, CalendarDays, AlertCircle, Clock, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { Client, View } from '@/lib/supabase-service';
 import { cn } from '@/lib/utils';
 import { getClientStatusMetrics, generateWhatsAppMessage } from '@/lib/automation-utils';
+import { differenceInDays, parse } from 'date-fns';
 
 interface ReturnsViewProps {
   setView: (v: View | 'back') => void;
@@ -77,16 +78,25 @@ export const ReturnsView = ({ setView, onSelectClient, clients }: ReturnsViewPro
               <div className={cn(
                 "flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest",
                 overdue.some(c => c.id === ret.id) ? "bg-red-100 text-red-600" : 
-                inactive.some(c => c.id === ret.id) ? "bg-amber-100 text-amber-600" :
+                inactive.some(c => c.id === ret.id) ? "bg-amber-100 text-amber-600 border border-amber-200 shadow-sm" :
                 "bg-blue-100 text-blue-600"
               )}>
                 {overdue.some(c => c.id === ret.id) ? <AlertCircle size={12} /> : 
-                 inactive.some(c => c.id === ret.id) ? <MessageSquare size={12} /> : 
+                 inactive.some(c => c.id === ret.id) ? <Sparkles size={12} /> : 
                  <Clock size={12} />}
                 {overdue.some(c => c.id === ret.id) ? 'Atrasado' : 
-                 inactive.some(c => c.id === ret.id) ? 'Inativa' : 'Próximo'}
+                 inactive.some(c => c.id === ret.id) ? 'Prioridade de Retorno' : 'Próximo'}
               </div>
             </div>
+
+            {inactive.some(c => c.id === ret.id) && (
+              <div className="mb-4 p-2 bg-amber-50 rounded-xl border border-amber-100 flex items-center gap-2">
+                <span className="text-[10px] font-bold text-amber-700">
+                  ⚠️ Ausente há {ret.lastVisit ? differenceInDays(new Date(), parse(ret.lastVisit, 'yyyy-MM-dd', new Date())) : '?'} dias
+                </span>
+                <span className="text-[10px] text-amber-600">— Ideal recuperar!</span>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3 md:gap-4 mb-6">
               <div className="bg-surface-container-low p-3 md:p-4 rounded-2xl">

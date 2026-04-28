@@ -20,6 +20,7 @@ export const ClientSchema = z.object({
   origin: z.enum(['Instagram', 'Facebook', 'TikTok', 'Google', 'Google Maps', 'Indicação', 'Passando na rua', 'Cliente antiga', 'Vizinha']).optional(),
   referredBy: z.string().or(z.number()).optional(),
   nextVisit: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export const AppointmentSchema = z.object({
@@ -171,45 +172,108 @@ export const updateProfile = async (salonName: string) => {
 
 export interface SupabaseHealthResult {
   ok: boolean;
-  details: Record<string, boolean>;
+  details: {
+    profiles: boolean;
+    clients: boolean;
+    appointments: boolean;
+    salon_name_col: boolean;
+    client_name_col: boolean;
+    notes_col: boolean;
+    appt_notes_col: boolean;
+    has_orphans: boolean;
+  };
   error?: unknown;
 }
 
 export const checkDatabaseHealth = async (): Promise<SupabaseHealthResult> => {
-  if (!supabase) return { ok: false, details: {}, error: 'Supabase não inicializado' };
+  if (!supabase) return { 
+    ok: false, 
+    details: {
+      profiles: false,
+      clients: false,
+      appointments: false,
+      salon_name_col: false,
+      client_name_col: false,
+      notes_col: false,
+      appt_notes_col: false,
+      has_orphans: false,
+    }, 
+    error: 'Supabase não inicializado' 
+  };
   
-  const results: Record<string, boolean> = {
+  const results = {
     profiles: false,
     clients: false,
     appointments: false,
     salon_name_col: false,
     client_name_col: false,
+    notes_col: false,
+    appt_notes_col: false,
+    has_orphans: false,
   };
 
   try {
     // Check tables
-    const [p, c, a] = await Promise.all([
+    const [p, c, a, cOrphans, aOrphans] = await Promise.all([
       supabase.from('profiles').select('id').limit(1),
       supabase.from('clients').select('id').limit(1),
       supabase.from('appointments').select('id').limit(1),
+      supabase.from('clients').select('id', { count: 'exact', head: true }).is('user_id', null),
+      supabase.from('appointments').select('id', { count: 'exact', head: true }).is('user_id', null),
     ]);
 
     results.profiles = !p.error || p.error.code !== 'PGRST116';
     results.clients = !c.error;
     results.appointments = !a.error;
+    results.has_orphans = (cOrphans.count || 0) > 0 || (aOrphans.count || 0) > 0;
 
     // Check specific columns
-    const [col1, col2] = await Promise.all([
+    const [col1, col2, col3, col4] = await Promise.all([
       supabase.from('profiles').select('salon_name').limit(1),
       supabase.from('appointments').select('client_name').limit(1),
+      supabase.from('clients').select('notes').limit(1),
+      supabase.from('appointments').select('notes').limit(1),
     ]);
     results.salon_name_col = !col1.error;
     results.client_name_col = !col2.error;
+    results.notes_col = !col3.error;
+    results.appt_notes_col = !col4.error;
 
-    return { ok: results.profiles && results.clients && results.appointments && results.salon_name_col && results.client_name_col, details: results };
+    return { 
+      ok: results.profiles && results.clients && results.appointments && results.salon_name_col && results.client_name_col && results.notes_col && results.appt_notes_col, 
+      details: results 
+    };
   } catch (err) {
-    return { ok: false, details: results, error: err };
+    return { 
+      ok: false, 
+      details: {
+        profiles: results.profiles || false,
+        clients: results.clients || false,
+        appointments: results.appointments || false,
+        salon_name_col: results.salon_name_col || false,
+        client_name_col: results.client_name_col || false,
+        notes_col: results.notes_col || false,
+        appt_notes_col: results.appt_notes_col || false,
+        has_orphans: results.has_orphans || false,
+      }, 
+      error: err 
+    };
   }
+};
+
+export const getAllClientNames = async (): Promise<string[]> => {
+  if (!supabase) return [];
+  const user = await getAuthenticatedUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('clients')
+    .select('name')
+    .eq('user_id', user.id)
+    .order('name', { ascending: true });
+
+  if (error) return [];
+  return (data || []).map(c => c.name);
 };
 
 export const getClients = async (page = 1, pageSize = 20, search = '', retries = 2): Promise<{ data: Client[]; count: number }> => {
@@ -262,7 +326,8 @@ export const getClients = async (page = 1, pageSize = 20, search = '', retries =
       initial: c.initial,
       origin: c.origin,
       referredBy: c.referred_by,
-      nextVisit: c.next_visit
+      nextVisit: c.next_visit,
+      notes: c.notes
     })) as Client[];
 
     return { data: clients, count: count || 0 };
@@ -305,7 +370,8 @@ export const createClient = async (client: Partial<Client>) => {
       initial: validated.initial,
       origin: validated.origin,
       referred_by: String(validated.referredBy || ''),
-      next_visit: validated.nextVisit
+      next_visit: validated.nextVisit,
+      notes: validated.notes
     })
     .select()
     .single();
@@ -330,6 +396,7 @@ export const updateClient = async (id: number, client: Partial<Client>) => {
   if (client.origin !== undefined) updateData.origin = client.origin;
   if (client.referredBy !== undefined) updateData.referred_by = String(client.referredBy || '');
   if (client.nextVisit !== undefined) updateData.next_visit = client.nextVisit;
+  if (client.notes !== undefined) updateData.notes = client.notes;
 
   const { data, error } = await supabase
     .from('clients')
@@ -345,41 +412,49 @@ export const updateClient = async (id: number, client: Partial<Client>) => {
 
 export const saveClient = async (client: Partial<Client>) => {
   if (!supabase) throw new Error('Supabase not initialized');
+  const user = await getAuthenticatedUser();
+  if (!user) throw new Error('User not authenticated');
+
   const { data, error } = await supabase
     .from('clients')
-    .upsert(client)
+    .upsert({ ...client, user_id: user.id })
     .select()
     .single();
   
-  if (error) throw error;
+  if (error) handleSupabaseError(error, 'salvar cliente');
   return data as Client;
 };
 
 export const deleteClient = async (id: number) => {
   if (!supabase) throw new Error('Supabase not initialized');
+  const user = await getAuthenticatedUser();
+  if (!user) throw new Error('User not authenticated');
   
-  // 1. Get client name first to delete appointments
+  // 1. Get client name first to delete appointments (strictly for this user)
   const { data: client } = await supabase
     .from('clients')
     .select('name')
     .eq('id', id)
+    .eq('user_id', user.id)
     .single();
 
   if (client) {
-    // 2. Delete appointments
+    // 2. Delete appointments (strictly for this user)
     await supabase
       .from('appointments')
       .delete()
-      .eq('client_name', client.name);
+      .eq('client_name', client.name)
+      .eq('user_id', user.id);
   }
 
-  // 3. Delete client
+  // 3. Delete client (strictly for this user)
   const { error } = await supabase
     .from('clients')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('user_id', user.id);
   
-  if (error) throw error;
+  if (error) handleSupabaseError(error, 'excluir cliente');
 };
 
 export interface GetAppointmentsOptions {
@@ -510,19 +585,26 @@ export const saveAppointment = async (appointment: Appointment) => {
     throw err;
   }
 
+  const health = await checkDatabaseHealth();
+
+  const insertData: Record<string, string | number | undefined | null> = {
+    user_id: user.id,
+    client_id: validated.client_id,
+    client_name: validated.client_name,
+    service: validated.service,
+    value: validated.value,
+    time: validated.time,
+    payment: validated.payment,
+    date: validated.date
+  };
+
+  if (health.details.appt_notes_col) {
+    insertData.notes = validated.notes;
+  }
+
   const { data, error } = await supabase
     .from('appointments')
-    .insert({
-      user_id: user.id,
-      client_id: validated.client_id,
-      client_name: validated.client_name,
-      service: validated.service,
-      value: validated.value,
-      time: validated.time,
-      payment: validated.payment,
-      date: validated.date,
-      notes: validated.notes
-    })
+    .insert(insertData)
     .select()
     .single();
   
@@ -530,6 +612,32 @@ export const saveAppointment = async (appointment: Appointment) => {
     console.error('saveAppointment error detail:', JSON.stringify(error, null, 2));
     handleSupabaseError(error, 'salvar agendamento');
   }
+
+  // Update client metadata (last visit and total)
+  try {
+    const { data: clientData } = await supabase
+      .from('clients')
+      .select('total')
+      .eq('id', validated.client_id)
+      .single();
+
+    if (clientData) {
+      const currentTotal = parseFloat(clientData.total?.replace('R$ ', '').replace('.', '').replace(',', '.') || '0');
+      const newTotal = currentTotal + validated.value;
+      const formattedTotal = `R$ ${newTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+      await supabase
+        .from('clients')
+        .update({
+          last_visit: validated.date,
+          total: formattedTotal
+        })
+        .eq('id', validated.client_id);
+    }
+  } catch (err) {
+    console.error('Error updating client metadata after appointment:', err);
+  }
+
   return data as Appointment;
 };
 
@@ -571,7 +679,8 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
     initial: c.initial || c.name[0],
     origin: c.origin || 'Indicação',
     referred_by: String(c.referredBy || ''),
-    next_visit: c.nextVisit || null
+    next_visit: c.nextVisit || null,
+    notes: c.notes || null
   }));
 
   const { data: upsertedClients, error: clientError } = await supabase
@@ -580,8 +689,8 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
     .select();
 
   if (clientError) {
-    console.error('Erro ao sincronizar clientes:', clientError);
-    throw new Error(`Erro nos Clientes: ${clientError.message}`);
+    console.error('Erro detalhado ao sincronizar clientes:', JSON.stringify(clientError, null, 2));
+    throw new Error(`Erro nos Clientes: ${clientError.message || 'Erro desconhecido no banco de dados'}`);
   }
 
   // Update map with newly upserted clients
@@ -593,6 +702,8 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
 
   // 3. Process Appointments (Ensure client_id exists)
   const appointmentsToInsert = [];
+  
+  const health = await checkDatabaseHealth();
   
   for (const appt of appointments) {
     const normalizedName = normalize(appt.client);
@@ -628,7 +739,7 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
       clientMap.set(normalizedName, clientId!);
     }
 
-    appointmentsToInsert.push({
+    const appointmentData: Record<string, string | number | undefined | null> = {
       user_id: user.id,
       client_id: clientId!,
       client_name: appt.client,
@@ -637,8 +748,14 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
       time: appt.time,
       payment: appt.payment,
       date: appt.date,
-      notes: ''
-    });
+    };
+
+    // Only include notes if column exists in DB
+    if (health.details.appt_notes_col) {
+      appointmentData.notes = '';
+    }
+
+    appointmentsToInsert.push(appointmentData);
   }
 
   // 4. Clear and Insert Appointments
@@ -653,8 +770,8 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
     .insert(appointmentsToInsert);
 
   if (apptError) {
-    console.error('Erro ao sincronizar agendamentos:', apptError);
-    throw new Error(`Erro nos Agendamentos: ${apptError.message}`);
+    console.error('Erro detalhado ao sincronizar agendamentos:', JSON.stringify(apptError, null, 2));
+    throw new Error(`Erro nos Agendamentos: ${apptError.message || 'Erro desconhecido no banco de dados'}`);
   }
 
   console.log('Sincronização concluída com sucesso!');

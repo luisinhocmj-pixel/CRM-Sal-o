@@ -106,7 +106,7 @@ export const ClientDetailView = ({
         <div className="lg:col-span-4 bg-white p-6 md:p-8 rounded-3xl shadow-soft flex flex-col items-center text-center space-y-4">
           <div className="w-32 h-32 md:w-40 md:h-40 rounded-full p-1 bg-brand-gradient relative">
             <div className="w-full h-full rounded-full border-4 border-white overflow-hidden relative">
-              <Image src={client.img || `https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}&gender=female`} alt={client.name} fill className="object-cover" referrerPolicy="no-referrer" />
+              <Image src={client.img || `https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}&gender=female`} alt={client.name} fill sizes="(max-width: 768px) 128px, 160px" className="object-cover" referrerPolicy="no-referrer" />
             </div>
             <span className="absolute bottom-2 right-2 bg-[#fe9cbb] text-[#7a2f4b] text-[10px] font-bold px-3 py-1 rounded-full border-2 border-white shadow-sm uppercase">{client.status}</span>
           </div>
@@ -205,6 +205,29 @@ export const ClientDetailView = ({
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Importantes/Notas Section */}
+      <section className="bg-white p-8 rounded-3xl shadow-soft space-y-4 border-l-8 border-primary">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-bold text-on-surface flex items-center gap-2">
+            <Sparkles size={20} className="text-primary" />
+            Notas & Observações Importantes
+          </h3>
+          <button 
+            onClick={() => onEditClient(client)}
+            className="text-xs font-bold text-primary hover:underline"
+          >
+            Editar Notas
+          </button>
+        </div>
+        <div className="p-6 bg-surface-container-low rounded-2xl min-h-[100px]">
+          {client.notes ? (
+            <p className="text-on-surface whitespace-pre-wrap leading-relaxed">{client.notes}</p>
+          ) : (
+            <p className="text-on-surface-variant italic text-sm">Nenhuma nota registrada para esta cliente. Clique em editar para adicionar informações sobre saúde, preferências ou alergias.</p>
+          )}
         </div>
       </section>
 

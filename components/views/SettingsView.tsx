@@ -33,6 +33,20 @@ export const SettingsView = ({ setView, logoUrl, onRefresh, userName, userEmail,
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [salonName, setSalonName] = useState(profile?.salon_name || userName || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [auditNames, setAuditNames] = useState<string[]>([]);
+  const [isLoadingAudit, setIsLoadingAudit] = useState(false);
+
+  const handleAuditClients = async () => {
+    setIsLoadingAudit(true);
+    try {
+      const names = await supabaseService.getAllClientNames();
+      setAuditNames(names);
+    } catch (error) {
+      console.error('Audit error:', error);
+    } finally {
+      setIsLoadingAudit(false);
+    }
+  };
 
   useEffect(() => {
     if (profile?.salon_name) {
@@ -175,7 +189,7 @@ export const SettingsView = ({ setView, logoUrl, onRefresh, userName, userEmail,
 
   const sections = [
     { id: 'Geral', icon: Settings },
-    ...(userEmail === 'luisinhocmj@gmail.com' ? [{ id: 'Dados', icon: RefreshCw }] : []),
+    ...(userEmail === 'luisinhocmj@gmail.com' || userEmail === 'fernandaayres23@gmail.com' ? [{ id: 'Dados', icon: RefreshCw }] : []),
     { id: 'Serviços', icon: Scissors },
     { id: 'Horários', icon: Clock },
     { id: 'WhatsApp', icon: MessageSquare },
@@ -253,6 +267,18 @@ export const SettingsView = ({ setView, logoUrl, onRefresh, userName, userEmail,
                         </div>
                       ))}
                     </div>
+                    {healthStatus?.details && (!healthStatus.details.notes_col || !healthStatus.details.appt_notes_col) && (
+                      <div className="mt-2 p-2 bg-white/40 rounded-lg text-[10px] text-red-700 font-bold flex items-center gap-2">
+                        <AlertCircle size={12} />
+                        A coluna de &quot;Notas&quot; está faltando. Use o script SQL abaixo para corrigir.
+                      </div>
+                    )}
+                    {healthStatus?.details?.has_orphans && (
+                      <div className="mt-2 p-2 bg-white/40 rounded-lg text-[10px] text-amber-700 font-bold flex items-center gap-2">
+                        <AlertCircle size={12} />
+                        Existem registros órfãos (sem dono). Use o script SQL abaixo para reivindicá-los.
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="p-4 bg-surface-container-low rounded-2xl space-y-3">
@@ -299,6 +325,35 @@ export const SettingsView = ({ setView, logoUrl, onRefresh, userName, userEmail,
                     Exportar Meus Dados (LGPD)
                   </button>
 
+                  <div className="pt-4 border-t border-outline-variant/10">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-bold text-on-surface text-xs underline decoration-primary/30">Lista de Auditoria (Sincronização)</h4>
+                        <p className="text-[10px] text-on-surface-variant">Compare sua planilha com o CRM ({auditNames.length} no CRM)</p>
+                      </div>
+                      <button 
+                        onClick={handleAuditClients}
+                        disabled={isLoadingAudit}
+                        className="px-3 py-1.5 bg-primary/10 text-primary text-[10px] font-bold rounded-lg hover:bg-primary/20 transition-colors"
+                      >
+                        {isLoadingAudit ? 'Carregando...' : 'Ver Lista de Nomes'}
+                      </button>
+                    </div>
+
+                    {auditNames.length > 0 && (
+                      <div className="mt-3 p-3 bg-slate-50 rounded-xl max-h-[250px] overflow-y-auto border border-slate-200">
+                        <div className="grid grid-cols-1 gap-1">
+                          {auditNames.map((name, idx) => (
+                            <div key={idx} className="text-[10px] py-1 border-b border-white flex justify-between group">
+                              <span className="font-medium text-slate-600">{idx + 1}. {name}</span>
+                              <span className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">CRM ID: #{idx + 1}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="pt-4 mt-2 border-t border-outline-variant/10">
                     <div className="flex flex-col gap-3 mb-4">
                       <div className="p-3 bg-primary/5 rounded-xl border border-primary/10">
@@ -334,9 +389,9 @@ CREATE TABLE IF NOT EXISTS clients (
   origin TEXT,
   referred_by TEXT,
   next_visit TEXT,
+  notes TEXT,
   deleted_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, name)
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS appointments (
@@ -354,23 +409,78 @@ CREATE TABLE IF NOT EXISTS appointments (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. SEGURANÇA (RLS - ESSENCIAL)
+-- 2. GARANTIR COLUNAS E CONSTRAINTS (Para quem já tinha as tabelas)
+DO $$ 
+BEGIN
+  -- Adiciona coluna notes se não existir
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='clients' AND column_name='notes') THEN
+    ALTER TABLE clients ADD COLUMN notes TEXT;
+  END IF;
+
+  -- Adiciona coluna notes se não existir na tabela appointments
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='appointments' AND column_name='notes') THEN
+    ALTER TABLE appointments ADD COLUMN notes TEXT;
+  END IF;
+
+  -- Remove check constraints antigos que podem estar travando a sincronização
+  ALTER TABLE clients DROP CONSTRAINT IF EXISTS clients_origin_check;
+  ALTER TABLE clients DROP CONSTRAINT IF EXISTS clients_status_check;
+
+  -- Adiciona constraint UNIQUE se não existir
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'clients_user_id_name_key') THEN
+    ALTER TABLE clients ADD CONSTRAINT clients_user_id_name_key UNIQUE (user_id, name);
+  END IF;
+END $$;
+
+-- 3. SEGURANÇA (RLS - ESSENCIAL)
+-- Primeiro, desativa e ativa para limpar estados inconsistentes
+ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE clients DISABLE ROW LEVEL SECURITY;
+ALTER TABLE appointments DISABLE ROW LEVEL SECURITY;
+
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 
--- Políticas de acesso (Somente o dono vê seus dados)
+-- Limpa políticas antigas
 DROP POLICY IF EXISTS "Manage own profile" ON profiles;
-CREATE POLICY "Manage own profile" ON profiles FOR ALL USING (auth.uid() = id);
-
 DROP POLICY IF EXISTS "Manage own clients" ON clients;
-CREATE POLICY "Manage own clients" ON clients FOR ALL USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Manage own appointments" ON appointments;
-CREATE POLICY "Manage own appointments" ON appointments FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert their own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can insert their own clients" ON clients;
+DROP POLICY IF EXISTS "Users can insert their own appointments" ON appointments;
+
+-- 3.1 POLÍTICAS PARA PROFILES
+CREATE POLICY "Manage own profile" ON profiles 
+FOR ALL USING (auth.uid() = id) 
+WITH CHECK (auth.uid() = id);
+
+-- 3.2 POLÍTICAS PARA CLIENTES
+CREATE POLICY "Manage own clients" ON clients 
+FOR ALL USING (auth.uid() = user_id) 
+WITH CHECK (auth.uid() = user_id);
+
+-- 3.3 POLÍTICAS PARA AGENDAMENTOS
+CREATE POLICY "Manage own appointments" ON appointments 
+FOR ALL USING (auth.uid() = user_id) 
+WITH CHECK (auth.uid() = user_id);
+
+-- 4. RESTAURAR DADOS ANTERIORES E SEGURANÇA (Claim Orphans)
+-- Reivindica registros que não têm dono (atribui ao usuário que rodar o script)
+UPDATE clients SET user_id = auth.uid() WHERE user_id IS NULL;
+UPDATE appointments SET user_id = auth.uid() WHERE user_id IS NULL;
+
+-- Se o registro existe mas o user_id não corresponde ao auth.uid(), 
+-- e o usuário está tentando fazer um upsert/sincronização, 
+-- o RLS pode travar se houver conflito de nomes.
+-- O script acima resolve para os nulos.
+
+-- Garante que o user_id não seja nulo daqui pra frente
+ALTER TABLE clients ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE appointments ALTER COLUMN user_id SET NOT NULL;
 `;
                           navigator.clipboard.writeText(sql.trim());
-                          alert('✅ SCRIPT DE SEGURANÇA COPIADO!\n\nNo Supabase:\n1. Clique em "New Query"\n2. Cole (Ctrl+V)\n3. Clique em "Run"\n\nIsso garantirá que seus dados fiquem protegidos e isolados por usuário.');
+                          alert('✅ SCRIPT DE CORREÇÃO COPIADO!\n\nNo Supabase:\n1. Clique em "SQL Editor" (ícone >_ na lateral esquerda)\n2. Clique em "+ New Query"\n3. Cole o código (Ctrl+V)\n4. Clique em "Run" (botão azul em cima)\n\nIsso corrigirá os erros de "notes", "origin" e "constraints" que estavam impedindo a sincronização!');
                           window.open('https://supabase.com/dashboard/project/_/sql', '_blank');
                         }}
                         className="w-full py-4 bg-primary text-white rounded-2xl font-bold text-sm shadow-lg hover:shadow-primary/20 active:scale-95 transition-all flex items-center justify-center gap-2"
@@ -393,7 +503,7 @@ ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
                 <div className="flex items-center gap-6 pb-6 border-b border-outline-variant/10">
                 <div className="relative w-20 h-20 rounded-2xl border-4 border-primary/10 p-1 overflow-hidden bg-brand-gradient flex items-center justify-center text-white">
                   {logoUrl ? (
-                    <Image src={logoUrl} alt="Logo" fill className="object-cover" />
+                    <Image src={logoUrl} alt="Logo" fill sizes="80px" className="object-cover" />
                   ) : (
                     <Sparkles size={32} fill="currentColor" />
                   )}

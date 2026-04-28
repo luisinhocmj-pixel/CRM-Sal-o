@@ -164,6 +164,16 @@ export const NewClientView = ({
               </div>
             </div>
           )}
+
+          <div className="space-y-2 md:col-span-2">
+            <label className="block text-xs font-bold text-outline uppercase tracking-widest mb-1 ml-1">Notas Importantes (Histórico de Saúde, Alergias, etc.)</label>
+            <textarea 
+              value={formData.notes || ''}
+              onChange={(e) => setFormData({...formData, notes: e.target.value})}
+              placeholder="Ex: Alérgica a esmalte X, gosta de café sem açúcar, teve pneumonia recente..." 
+              className="w-full px-6 py-4 bg-surface-container-low border-none rounded-2xl focus:ring-2 focus:ring-primary/20 transition-all text-on-surface h-32 resize-none"
+            />
+          </div>
         </div>
 
         <div className="flex items-center justify-end gap-4 pt-4">

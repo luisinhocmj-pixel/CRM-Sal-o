@@ -239,7 +239,7 @@ export const DashboardView = ({ setView, clients, setFinancialType, userName, he
                 >
                   <div className="flex items-center gap-4">
                     <div className="relative w-12 h-12">
-                      <Image src={client.img || `https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}&gender=female`} alt={client.name} fill className="rounded-full object-cover border-2 border-white shadow-sm" referrerPolicy="no-referrer" />
+                      <Image src={client.img || `https://api.dicebear.com/7.x/avataaars/svg?seed=${client.name}&gender=female`} alt={client.name} fill sizes="48px" className="rounded-full object-cover border-2 border-white shadow-sm" referrerPolicy="no-referrer" />
                     </div>
                     <div>
                       <h4 className="font-bold text-on-surface">{client.name}</h4>
