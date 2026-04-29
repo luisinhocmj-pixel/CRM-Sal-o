@@ -8,7 +8,7 @@ import {
 import Image from 'next/image';
 import { View, Client, saveAppointment, Appointment } from '@/lib/supabase-service';
 import { HAIR_SERVICES, PAYMENT_METHODS } from '@/lib/constants';
-import { cn, getAvatarUrl } from '@/lib/utils';
+import { cn, getAvatarUrl, getLocalDateString } from '@/lib/utils';
 
 interface NewAppointmentViewProps {
   setView: (v: View | 'back') => void;
@@ -21,7 +21,7 @@ export const NewAppointmentView = ({ setView, clients, onSave }: NewAppointmentV
   const [customService, setCustomService] = useState('');
   const [serviceValue, setServiceValue] = useState('350,00');
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
-  const [appointmentDate, setAppointmentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [appointmentDate, setAppointmentDate] = useState(getLocalDateString());
   const [appointmentTime, setAppointmentTime] = useState('14:00');
   const [nextVisitDate, setNextVisitDate] = useState('');
   const [activePreset, setActivePreset] = useState<number | null>(null);

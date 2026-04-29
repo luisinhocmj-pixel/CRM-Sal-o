@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { Send, CalendarDays, AlertCircle, Clock, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { Client, View } from '@/lib/supabase-service';
-import { cn, getAvatarUrl } from '@/lib/utils';
+import { cn, getAvatarUrl, formatDateBR } from '@/lib/utils';
 import { getClientStatusMetrics, generateWhatsAppMessage } from '@/lib/automation-utils';
 import { differenceInDays, parse } from 'date-fns';
 
@@ -108,11 +108,11 @@ export const ReturnsView = ({ setView, onSelectClient, clients }: ReturnsViewPro
             <div className="grid grid-cols-2 gap-3 md:gap-4 mb-6">
               <div className="bg-surface-container-low p-3 md:p-4 rounded-2xl">
                 <p className="text-[9px] md:text-[10px] uppercase font-bold text-outline tracking-widest mb-1">Última Visita</p>
-                <p className="text-xs md:text-sm font-bold text-on-surface">{ret.lastVisit}</p>
+                <p className="text-xs md:text-sm font-bold text-on-surface">{formatDateBR(ret.lastVisit)}</p>
               </div>
               <div className="bg-surface-container-low p-3 md:p-4 rounded-2xl">
                 <p className="text-[9px] md:text-[10px] uppercase font-bold text-outline tracking-widest mb-1">Sugestão Retorno</p>
-                <p className="text-xs md:text-sm font-bold text-primary">{ret.nextVisit}</p>
+                <p className="text-xs md:text-sm font-bold text-primary">{formatDateBR(ret.nextVisit)}</p>
               </div>
             </div>
 

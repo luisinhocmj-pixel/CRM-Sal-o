@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { Client, View, getFinancialSummary } from '@/lib/supabase-service';
-import { cn, getAvatarUrl } from '@/lib/utils';
+import { cn, getAvatarUrl, formatDateBR } from '@/lib/utils';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { getTopSpenders, getTopReferrers, getOriginStats, getClientStatusMetrics } from '@/lib/automation-utils';
 
@@ -255,7 +255,7 @@ export const DashboardView = ({ setView, clients, setFinancialType, userName, he
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-[#6F3BD1]">{client.nextVisit}</p>
+                    <p className="text-sm font-bold text-[#6F3BD1]">{formatDateBR(client.nextVisit)}</p>
                     <p className="text-xs text-on-surface-variant">Retorno</p>
                   </div>
                 </div>

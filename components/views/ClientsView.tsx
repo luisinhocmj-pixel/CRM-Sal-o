@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { PlusCircle, Settings, MoreVertical, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { Client, View, getClients } from '@/lib/supabase-service';
-import { cn, getAvatarUrl } from '@/lib/utils';
+import { cn, getAvatarUrl, formatDateBR } from '@/lib/utils';
 
 interface ClientsViewProps {
   setView: (v: View | 'back') => void;
@@ -153,7 +153,7 @@ export const ClientsView = ({
                 </td>
                 <td className="px-6 py-5">
                   <div className="flex flex-col">
-                    <span className="text-sm text-on-surface">{client.lastVisit}</span>
+                    <span className="text-sm text-on-surface">{formatDateBR(client.lastVisit)}</span>
                     <span className="text-xs text-slate-400">{client.service}</span>
                   </div>
                 </td>

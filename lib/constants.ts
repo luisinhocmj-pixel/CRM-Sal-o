@@ -16,12 +16,12 @@ export const BRAZIL_HOLIDAYS_2026: Record<string, string> = {
 };
 
 export const HAIR_SERVICES = [
-  { name: 'Alisamento Orgânico', price: 350 },
-  { name: 'Progressiva Premium', price: 450 },
+  { name: 'Progressiva com Formol', price: 350 },
+  { name: 'Progressiva sem Formol', price: 380 },
   { name: 'Selagem Térmica', price: 280 },
   { name: 'Botox Capilar', price: 220 },
   { name: 'Cronograma Capilar', price: 180 },
-  { name: 'Corte Especialista', price: 150 },
+  { name: 'Corte', price: 150 },
   { name: 'Hidratação Profunda', price: 120 },
 ];
 

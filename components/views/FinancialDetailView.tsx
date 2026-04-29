@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { Client, View, Appointment, getFinancialSummary, getAppointments } from '@/lib/supabase-service';
-import { cn, getAvatarUrl } from '@/lib/utils';
+import { cn, getAvatarUrl, formatDateBR } from '@/lib/utils';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
@@ -195,7 +195,7 @@ export const FinancialDetailView = ({
             <Loader2 className="animate-spin text-primary" size={32} />
           </div>
         )}
-        <h3 className="font-bold text-lg text-on-surface mb-4">Serviços Realizados em {selectedDay}/{selectedMonth + 1}/{selectedYear}</h3>
+        <h3 className="font-bold text-lg text-on-surface mb-4">Serviços Realizados em {formatDateBR(`${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`)}</h3>
         {appointments.length > 0 ? appointments.map((apt, i) => {
           const client = clients.find(c => c.id === apt.client_id) || clients.find(c => c.name === apt.client_name);
           return (

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { Client, View, Appointment } from '@/lib/supabase-service';
-import { cn, getAvatarUrl } from '@/lib/utils';
+import { cn, getAvatarUrl, formatDateBR } from '@/lib/utils';
 
 interface ClientDetailViewProps {
   setView: (v: View | 'back') => void;
@@ -59,14 +59,6 @@ export const ClientDetailView = ({
   }, [clientAppointments]);
 
   if (!client) return null;
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    // Extract YYYY-MM-DD from potential ISO string
-    const pureDate = dateStr.split('T')[0];
-    const [year, month, day] = pureDate.split('-');
-    return `${day}/${month}/${year}`;
-  };
 
   const referredClient = typeof client.referredBy === 'number'
     ? clients.find(c => c.id === client.referredBy)
@@ -158,7 +150,7 @@ export const ClientDetailView = ({
           {[
             { label: 'Total Investido', value: client.total, icon: CreditCard, color: '#6F3BD1' },
             { label: 'Indicações', value: String(indications.length).padStart(2, '0'), icon: Send, color: '#E889A8' },
-            { label: 'Próximo Retorno', value: client.nextVisit || 'Não agendado', icon: HistoryIcon, color: '#6d3800' },
+            { label: 'Próximo Retorno', value: formatDateBR(client.nextVisit) || 'Não agendado', icon: HistoryIcon, color: '#6d3800' },
           ].map((stat, i) => (
             <div key={i} className="bg-white p-6 rounded-2xl shadow-soft flex flex-col justify-between">
               <stat.icon size={32} color={stat.color} />
@@ -259,7 +251,7 @@ export const ClientDetailView = ({
               {clientAppointments.length > 0 ? clientAppointments.map((apt, i) => (
                 <tr key={i} className="hover:bg-surface-bright transition-colors">
                   <td className="py-4 text-sm font-medium text-on-surface">
-                    {formatDate(apt.date)}
+                    {formatDateBR(apt.date)}
                   </td>
                   <td className="py-4 text-sm text-on-surface-variant">{apt.service}</td>
                   <td className="py-4 text-sm font-bold text-primary">

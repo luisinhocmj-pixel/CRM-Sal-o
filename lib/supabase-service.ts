@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { z } from 'zod';
 import { User } from '@supabase/supabase-js';
+import { getLocalDateString } from './utils';
 
 export { supabase };
 
@@ -313,22 +314,27 @@ export const getClients = async (page = 1, pageSize = 20, search = '', retries =
       console.log(`getClients: Nenhum resultado para o usuário ${user.id} (Busca: "${search}")`);
     }
     
-    const clients = (data || []).map(c => ({
-      id: c.id,
-      user_id: c.user_id,
-      name: c.name,
-      phone: c.phone,
-      status: c.status,
-      lastVisit: c.last_visit,
-      service: c.service,
-      total: c.total,
-      img: c.img,
-      initial: c.initial,
-      origin: c.origin,
-      referredBy: c.referred_by,
-      nextVisit: c.next_visit,
-      notes: c.notes
-    })) as Client[];
+    const clients = (data || []).map(c => {
+      // Sanitizar imagem: se não for uma URL válida, tratar como null para usar o fallback
+      const imageUrl = c.img && (c.img.startsWith('http') || c.img.startsWith('data:')) ? c.img : null;
+      
+      return {
+        id: c.id,
+        user_id: c.user_id,
+        name: c.name,
+        phone: c.phone,
+        status: c.status,
+        lastVisit: c.last_visit,
+        service: c.service,
+        total: c.total,
+        img: imageUrl,
+        initial: c.initial,
+        origin: c.origin,
+        referredBy: c.referred_by,
+        nextVisit: c.next_visit,
+        notes: c.notes
+      };
+    }) as Client[];
 
     return { data: clients, count: count || 0 };
   } catch (err) {
@@ -353,7 +359,7 @@ export const createClient = async (client: Partial<Client>) => {
     user_id: user.id,
     status: client.status || 'Novo',
     total: client.total || 'R$ 0,00',
-    lastVisit: client.lastVisit || new Date().toISOString().split('T')[0]
+    lastVisit: client.lastVisit || getLocalDateString()
   });
 
   const { data, error } = await supabase
@@ -366,7 +372,7 @@ export const createClient = async (client: Partial<Client>) => {
       last_visit: validated.lastVisit,
       service: validated.service,
       total: validated.total,
-      img: validated.img,
+      img: (validated.img && (validated.img.startsWith('http') || validated.img.startsWith('data:'))) ? validated.img : null,
       initial: validated.initial,
       origin: validated.origin,
       referred_by: String(validated.referredBy || ''),
@@ -391,7 +397,9 @@ export const updateClient = async (id: number, client: Partial<Client>) => {
   if (client.lastVisit !== undefined) updateData.last_visit = client.lastVisit;
   if (client.service !== undefined) updateData.service = client.service;
   if (client.total !== undefined) updateData.total = client.total;
-  if (client.img !== undefined) updateData.img = client.img;
+  if (client.img !== undefined) {
+    updateData.img = (client.img && (client.img.startsWith('http') || client.img.startsWith('data:'))) ? client.img : null;
+  }
   if (client.initial !== undefined) updateData.initial = client.initial;
   if (client.origin !== undefined) updateData.origin = client.origin;
   if (client.referredBy !== undefined) updateData.referred_by = String(client.referredBy || '');
@@ -525,6 +533,56 @@ export const getAppointments = async (options: GetAppointmentsOptions = {}, retr
     }
     throw err;
   }
+};
+
+export const getReturnForecasts = async (startDate: string, endDate: string): Promise<Client[]> => {
+  if (!supabase) return [];
+  const user = await getAuthenticatedUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('user_id', user.id)
+    .not('next_visit', 'is', null)
+    .gte('next_visit', startDate)
+    .lte('next_visit', endDate);
+
+  if (error) {
+    console.error('getReturnForecasts error:', error);
+    return [];
+  }
+
+  return (data || []).map(c => ({
+    id: c.id,
+    user_id: c.user_id,
+    name: c.name,
+    phone: c.phone,
+    status: c.status,
+    lastVisit: c.last_visit,
+    service: c.service,
+    total: c.total,
+    img: c.img,
+    initial: c.initial,
+    origin: c.origin,
+    referredBy: c.referred_by,
+    nextVisit: c.next_visit,
+    notes: c.notes
+  })) as Client[];
+};
+
+export const deleteAppointment = async (id: string): Promise<boolean> => {
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from('appointments')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('deleteAppointment error:', error);
+    return false;
+  }
+  return true;
 };
 
 export const getFinancialSummary = async (startDate: string, endDate: string, retries = 2): Promise<{ total: number; count: number }> => {
@@ -675,7 +733,7 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
     last_visit: c.lastVisit || null,
     service: c.service || '',
     total: c.total || 'R$ 0,00',
-    img: c.img || null,
+    img: (c.img && (c.img.startsWith('http') || c.img.startsWith('data:'))) ? c.img : null,
     initial: c.initial || c.name[0],
     origin: c.origin || 'Indicação',
     referred_by: String(c.referredBy || ''),

@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar, ChevronLeft, ChevronRight, Clock, User, AlertCircle, Loader2 } from 'lucide-react';
+import { Trash2, Calendar, ChevronLeft, ChevronRight, Clock, User, AlertCircle, Loader2, MessageSquare, Star } from 'lucide-react';
 import Image from 'next/image';
-import { Client, View, Appointment, getAppointments } from '@/lib/supabase-service';
+import { Client, View, Appointment, getAppointments, getReturnForecasts, deleteAppointment } from '@/lib/supabase-service';
 import { cn, getAvatarUrl } from '@/lib/utils';
 import { BRAZIL_HOLIDAYS_2026 } from '@/lib/constants';
 import { format } from 'date-fns';
@@ -19,7 +19,9 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
   const [agendaType, setAgendaType] = useState<'dia' | 'semana' | 'mes'>('dia');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [returnForecasts, setReturnForecasts] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const getWeekDays = React.useCallback(() => {
     const start = new Date(selectedDate);
@@ -62,34 +64,53 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
     return days;
   }, [selectedDate]);
 
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      setIsLoading(true);
-      try {
-        let startDate, endDate;
-        if (agendaType === 'dia') {
-          startDate = endDate = format(selectedDate, 'yyyy-MM-dd');
-        } else if (agendaType === 'semana') {
-          const weekDays = getWeekDays();
-          startDate = format(weekDays[0], 'yyyy-MM-dd');
-          endDate = format(weekDays[6], 'yyyy-MM-dd');
-        } else {
-          const monthDays = getMonthDays();
-          startDate = format(monthDays[0], 'yyyy-MM-dd');
-          endDate = format(monthDays[monthDays.length - 1], 'yyyy-MM-dd');
-        }
-
-        const { data } = await getAppointments({ startDate, endDate, pageSize: 500 });
-        setAppointments(data);
-      } catch (error) {
-        console.error('Error fetching appointments for agenda:', error);
-      } finally {
-        setIsLoading(false);
+  const fetchAgendaData = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      let startDate, endDate;
+      if (agendaType === 'dia') {
+        startDate = endDate = format(selectedDate, 'yyyy-MM-dd');
+      } else if (agendaType === 'semana') {
+        const weekDays = getWeekDays();
+        startDate = format(weekDays[0], 'yyyy-MM-dd');
+        endDate = format(weekDays[6], 'yyyy-MM-dd');
+      } else {
+        const monthDays = getMonthDays();
+        startDate = format(monthDays[0], 'yyyy-MM-dd');
+        endDate = format(monthDays[monthDays.length - 1], 'yyyy-MM-dd');
       }
-    };
 
-    fetchAppointments();
-  }, [selectedDate, agendaType, getWeekDays, getMonthDays]);
+      const [{ data: appts }, forecasts] = await Promise.all([
+        getAppointments({ startDate, endDate, pageSize: 500 }),
+        getReturnForecasts(startDate, endDate)
+      ]);
+      
+      setAppointments(appts);
+      setReturnForecasts(forecasts);
+    } catch (error) {
+      console.error('Error fetching agenda data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [agendaType, selectedDate, getWeekDays, getMonthDays]);
+
+  useEffect(() => {
+    fetchAgendaData();
+  }, [fetchAgendaData]);
+筋
+  const handleDeleteAppointment = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Deseja realmente excluir este atendimento?')) return;
+    
+    setIsDeleting(id);
+    const success = await deleteAppointment(id);
+    if (success) {
+      setAppointments(prev => prev.filter(a => a.id !== id));
+    } else {
+      alert('Erro ao excluir atendimento.');
+    }
+    setIsDeleting(null);
+  };
 
   const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -117,12 +138,61 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
 
   const renderDayView = () => {
     const holiday = getHoliday(selectedDate);
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const dayForecasts = returnForecasts.filter(f => f.nextVisit === dateStr);
+
     return (
       <div className="space-y-6">
         {holiday && (
           <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-3 text-amber-800">
             <AlertCircle size={20} />
             <span className="text-sm font-bold">Feriado: {holiday}</span>
+          </div>
+        )}
+
+        {dayForecasts.length > 0 && (
+          <div className="space-y-2">
+            <h5 className="text-xs font-bold text-primary uppercase tracking-widest flex items-center gap-2">
+              <Star size={14} className="fill-primary" />
+              Previsão de Retorno (Forecast)
+            </h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {dayForecasts.map(forecast => (
+                <div 
+                  key={forecast.id} 
+                  onClick={() => onSelectClient(forecast)}
+                  className="bg-primary/5 border border-primary/10 p-4 rounded-2xl flex items-center justify-between group cursor-pointer hover:bg-primary/10 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-10 h-10 rounded-full overflow-hidden bg-primary/20">
+                      <Image 
+                        src={forecast.img || getAvatarUrl(forecast.name)} 
+                        alt={forecast.name} 
+                        fill 
+                        sizes="40px" 
+                        className="object-cover" 
+                        referrerPolicy="no-referrer"
+                        unoptimized
+                      />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-on-surface">{forecast.name}</p>
+                      <p className="text-[10px] text-primary font-medium">Previsto: {forecast.service || 'Retorno'}</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const msg = encodeURIComponent(`Olá ${forecast.name}! Aqui é da Estética & Bem-Estar. Notei que está chegando o tempo do seu retorno para o serviço de ${forecast.service || 'cabelo'}. Podemos agendar um horário?`);
+                      window.open(`https://wa.me/${forecast.phone.replace(/\D/g, '')}?text=${msg}`, '_blank');
+                    }}
+                    className="p-2 bg-green-500 text-white rounded-full hover:scale-110 transition-all shadow-sm"
+                  >
+                    <MessageSquare size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
         
@@ -161,7 +231,16 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
                           <p className="text-[10px] md:text-xs font-medium text-[#6F3BD1]">{app.service}</p>
                         </div>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-400">{app.payment}</span>
+                      <div className="flex items-center gap-4">
+                        <span className="text-[10px] font-bold text-slate-400">{app.payment}</span>
+                        <button 
+                          onClick={(e) => app.id && handleDeleteAppointment(app.id, e)}
+                          disabled={isDeleting === app.id}
+                          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                        >
+                          {isDeleting === app.id ? <Loader2 size={16} className="animate-spin text-red-500" /> : <Trash2 size={16} />}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -183,7 +262,7 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
           )}
           
           {/* Empty slots visualization */}
-          {appointments.length < 5 && appointments.length > 0 && (
+          {(appointments.length < 5 && appointments.length > 0) && (
             <div className="flex gap-4 md:gap-6 group opacity-40">
               <span className="w-8 md:w-10 text-right text-[10px] md:text-xs font-bold mt-3 text-slate-400">16:00</span>
               <div 
@@ -212,6 +291,7 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
           const holiday = getHoliday(date);
           const dateStr = format(date, 'yyyy-MM-dd');
           const dayAppts = appointments.filter(a => a.date === dateStr);
+          const dayForecasts = returnForecasts.filter(f => f.nextVisit === dateStr);
           const isToday = date.toDateString() === new Date().toDateString();
           
           return (
@@ -230,13 +310,19 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
                     {holiday}
                   </div>
                 )}
+                {dayForecasts.map((forecast, idx) => (
+                  <div key={`f-${idx}`} className="bg-primary/10 border-l-2 border-primary p-1.5 rounded text-[9px] leading-tight">
+                    <p className="font-bold truncate text-primary">{forecast.name}</p>
+                    <p className="text-primary/70 truncate">Previsão Retorno</p>
+                  </div>
+                ))}
                 {dayAppts.map((app, idx) => (
-                  <div key={idx} className="bg-[#F8F6FB] border-l-2 border-[#6F3BD1] p-1.5 rounded text-[9px] leading-tight">
+                  <div key={`a-${idx}`} className="bg-[#F8F6FB] border-l-2 border-[#6F3BD1] p-1.5 rounded text-[9px] leading-tight">
                     <p className="font-bold truncate">{app.client_name}</p>
                     <p className="text-slate-500 truncate">{app.time}</p>
                   </div>
                 ))}
-                {dayAppts.length === 0 && !holiday && (
+                {dayAppts.length === 0 && dayForecasts.length === 0 && !holiday && (
                   <div className="h-full flex items-center justify-center opacity-10">
                     <Clock size={16} />
                   </div>
@@ -270,6 +356,7 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
           const holiday = getHoliday(date);
           const dateStr = format(date, 'yyyy-MM-dd');
           const dayAppts = appointments.filter(a => a.date === dateStr);
+          const dayForecasts = returnForecasts.filter(f => f.nextVisit === dateStr);
           
           return (
             <div 
@@ -288,8 +375,11 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
                 )}>
                   {date.getDate()}
                 </span>
-                {dayAppts.length > 0 && (
-                  <span className="w-2 h-2 bg-[#E889A8] rounded-full"></span>
+                {(dayAppts.length > 0 || dayForecasts.length > 0) && (
+                  <div className="flex gap-0.5">
+                    {dayAppts.length > 0 && <span className="w-1.5 h-1.5 bg-[#6F3BD1] rounded-full"></span>}
+                    {dayForecasts.length > 0 && <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></span>}
+                  </div>
                 )}
               </div>
               
@@ -297,13 +387,18 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
                 {holiday && (
                   <p className="text-[8px] font-bold text-amber-600 truncate">{holiday}</p>
                 )}
+                {dayForecasts.slice(0, 1).map((f, idx) => (
+                  <p key={`f-${idx}`} className="text-[9px] text-primary truncate bg-primary/10 px-1 rounded font-bold">
+                    PREV: {f.name}
+                  </p>
+                ))}
                 {dayAppts.slice(0, 2).map((app, idx) => (
                   <p key={idx} className="text-[9px] text-slate-500 truncate bg-slate-50 px-1 rounded">
                     {app.client_name}
                   </p>
                 ))}
-                {dayAppts.length > 2 && (
-                  <p className="text-[8px] text-[#6F3BD1] font-bold">+{dayAppts.length - 2} mais</p>
+                {(dayAppts.length + dayForecasts.length > 3) && (
+                  <p className="text-[8px] text-[#6F3BD1] font-bold">+{dayAppts.length + dayForecasts.length - 3} mais</p>
                 )}
               </div>
             </div>
