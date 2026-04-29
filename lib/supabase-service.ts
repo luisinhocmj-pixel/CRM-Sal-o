@@ -585,6 +585,23 @@ export const deleteAppointment = async (id: string): Promise<boolean> => {
   return true;
 };
 
+export const updateAppointment = async (id: number | string, appointment: Partial<Appointment>) => {
+  if (!supabase) throw new Error('Supabase not initialized');
+  const user = await getAuthenticatedUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const { data, error } = await supabase
+    .from('appointments')
+    .update(appointment)
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select()
+    .single();
+
+  if (error) handleSupabaseError(error, 'atualizar agendamento');
+  return data as Appointment;
+};
+
 export const getFinancialSummary = async (startDate: string, endDate: string, retries = 2): Promise<{ total: number; count: number }> => {
   if (!supabase) return { total: 0, count: 0 };
 
