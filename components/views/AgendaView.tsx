@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trash2, Calendar, ChevronLeft, ChevronRight, Clock, User, AlertCircle, Loader2, MessageSquare, Star } from 'lucide-react';
+import { Trash2, Calendar, ChevronLeft, ChevronRight, Clock, User, AlertCircle, Loader2, MessageSquare, Star, Edit2 } from 'lucide-react';
 import Image from 'next/image';
 import { Client, View, Appointment, getAppointments, getReturnForecasts, deleteAppointment } from '@/lib/supabase-service';
 import { cn, getAvatarUrl } from '@/lib/utils';
@@ -12,10 +12,11 @@ import { format } from 'date-fns';
 interface AgendaViewProps {
   setView: (v: View | 'back') => void;
   onSelectClient: (c: Client) => void;
+  onEditAppointment?: (a: Appointment) => void;
   clients: Client[];
 }
 
-export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps) => {
+export const AgendaView = ({ setView, onSelectClient, onEditAppointment, clients }: AgendaViewProps) => {
   const [agendaType, setAgendaType] = useState<'dia' | 'semana' | 'mes'>('dia');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -97,7 +98,7 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
   useEffect(() => {
     fetchAgendaData();
   }, [fetchAgendaData]);
-筋
+
   const handleDeleteAppointment = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm('Deseja realmente excluir este atendimento?')) return;
@@ -233,13 +234,24 @@ export const AgendaView = ({ setView, onSelectClient, clients }: AgendaViewProps
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="text-[10px] font-bold text-slate-400">{app.payment}</span>
-                        <button 
-                          onClick={(e) => app.id && handleDeleteAppointment(app.id, e)}
-                          disabled={isDeleting === app.id}
-                          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                        >
-                          {isDeleting === app.id ? <Loader2 size={16} className="animate-spin text-red-500" /> : <Trash2 size={16} />}
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditAppointment?.(app);
+                            }}
+                            className="p-2 text-slate-300 hover:text-primary hover:bg-primary/5 rounded-full transition-all"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button 
+                            onClick={(e) => app.id && handleDeleteAppointment(app.id, e)}
+                            disabled={isDeleting === app.id}
+                            className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                          >
+                            {isDeleting === app.id ? <Loader2 size={16} className="animate-spin text-red-500" /> : <Trash2 size={16} />}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

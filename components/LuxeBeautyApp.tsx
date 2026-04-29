@@ -30,6 +30,7 @@ export default function LuxeBeautyApp() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [financialState, setFinancialState] = useState({
     level: 'daily',
     year: new Date().getFullYear(),
@@ -64,6 +65,9 @@ export default function LuxeBeautyApp() {
           return 'dashboard';
         }
         
+        if (newView !== 'new-client') setEditingClient(null);
+        if (newView !== 'new-appointment') setEditingAppointment(null);
+
         setViewHistory(prev => [...prev, newView]);
         return newView;
       });
@@ -165,14 +169,18 @@ export default function LuxeBeautyApp() {
       // Separate appointment data from client update data
       const { next_visit, ...appointment } = apptData;
       
-      await supabaseService.saveAppointment(appointment);
-      
-      // Create Google Calendar event if connected (background)
-      fetch('/api/calendar/event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appointment })
-      }).catch(err => console.error('Silent failure creating calendar event:', err));
+      if (appointment.id) {
+        await supabaseService.updateAppointment(appointment.id, appointment);
+      } else {
+        await supabaseService.saveAppointment(appointment);
+        
+        // Create Google Calendar event if connected (background) - only for new ones
+        fetch('/api/calendar/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appointment })
+        }).catch(err => console.error('Silent failure creating calendar event:', err));
+      }
       
       // Update client stats in the local state for immediate feedback
       const client = clients.find(c => c.id == apptData.client_id);
@@ -205,6 +213,11 @@ export default function LuxeBeautyApp() {
   const handleEditClient = (client: Client) => {
     setEditingClient(client);
     setView('new-client');
+  };
+
+  const handleEditAppointment = (appt: Appointment) => {
+    setEditingAppointment(appt);
+    setView('new-appointment');
   };
 
   const handleSaveClient = async (clientData: Partial<Client>) => {
@@ -261,7 +274,7 @@ export default function LuxeBeautyApp() {
           />
         );
       case 'agenda':
-        return <AgendaView setView={handleSetView} onSelectClient={handleSelectClient} clients={clients} />;
+        return <AgendaView setView={handleSetView} onSelectClient={handleSelectClient} onEditAppointment={handleEditAppointment} clients={clients} />;
       case 'returns':
         return <ReturnsView setView={handleSetView} onSelectClient={handleSelectClient} clients={clients} />;
       case 'settings':
@@ -288,7 +301,7 @@ export default function LuxeBeautyApp() {
           />
         );
       case 'new-appointment':
-        return <NewAppointmentView setView={handleSetView} clients={clients} onSave={handleSaveAppointment} />;
+        return <NewAppointmentView setView={handleSetView} clients={clients} onSave={handleSaveAppointment} initialData={editingAppointment || undefined} />;
       case 'financial-detail':
         return (
           <FinancialDetailView 

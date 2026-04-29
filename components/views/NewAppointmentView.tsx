@@ -6,30 +6,33 @@ import {
   Users, Search, Scissors, CheckCircle2, Star, UserPlus, X, Phone
 } from 'lucide-react';
 import Image from 'next/image';
-import { View, Client, saveAppointment, Appointment } from '@/lib/supabase-service';
+import { View, Client, saveAppointment, updateAppointment, Appointment } from '@/lib/supabase-service';
 import { HAIR_SERVICES, PAYMENT_METHODS } from '@/lib/constants';
-import { cn, getAvatarUrl, getLocalDateString } from '@/lib/utils';
+import { cn, getAvatarUrl, getLocalDateString, formatDateBR } from '@/lib/utils';
 
 interface NewAppointmentViewProps {
   setView: (v: View | 'back') => void;
   clients: Client[];
   onSave?: (data: Appointment & { next_visit?: string }) => Promise<void>;
+  initialData?: Appointment;
 }
 
-export const NewAppointmentView = ({ setView, clients, onSave }: NewAppointmentViewProps) => {
-  const [selectedService, setSelectedService] = useState(HAIR_SERVICES[0].name);
+export const NewAppointmentView = ({ setView, clients, onSave, initialData }: NewAppointmentViewProps) => {
+  const [selectedService, setSelectedService] = useState(initialData?.service || HAIR_SERVICES[0].name);
   const [customService, setCustomService] = useState('');
-  const [serviceValue, setServiceValue] = useState('350,00');
-  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
-  const [appointmentDate, setAppointmentDate] = useState(getLocalDateString());
-  const [appointmentTime, setAppointmentTime] = useState('14:00');
+  const [serviceValue, setServiceValue] = useState(initialData?.value ? initialData.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '350,00');
+  const [paymentMethod, setPaymentMethod] = useState(initialData?.payment || PAYMENT_METHODS[0]);
+  const [appointmentDate, setAppointmentDate] = useState(initialData?.date || getLocalDateString());
+  const [appointmentTime, setAppointmentTime] = useState(initialData?.time || '14:00');
   const [nextVisitDate, setNextVisitDate] = useState('');
   const [activePreset, setActivePreset] = useState<number | null>(null);
   const [clientSearch, setClientSearch] = useState('');
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(
+    initialData ? (clients.find(c => c.id === initialData.client_id) || clients.find(c => c.name === initialData.client_name) || null) : null
+  );
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(initialData?.notes || '');
   
   const filteredClients = useMemo(() => {
     if (!clientSearch) return [];
@@ -64,6 +67,12 @@ export const NewAppointmentView = ({ setView, clients, onSave }: NewAppointmentV
       animate={{ opacity: 1, y: 0 }}
       className="p-4 md:p-8 max-w-6xl mx-auto space-y-8 pb-24 md:pb-8"
     >
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-2xl md:text-3xl font-headline font-black text-brand-gradient">
+          {initialData ? 'Editar Atendimento' : 'Novo Atendimento'}
+        </h2>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         <div className="lg:col-span-8 space-y-6">
           <div className="bg-white rounded-2xl p-6 md:p-8 shadow-soft border border-white">
@@ -330,9 +339,16 @@ export const NewAppointmentView = ({ setView, clients, onSave }: NewAppointmentV
                   };
                   
                   if (onSave) {
-                    await onSave({ ...apptData, next_visit: nextVisitDate || undefined });
+                    const dataToSave = initialData?.id 
+                      ? { ...apptData, id: initialData.id, next_visit: nextVisitDate || undefined }
+                      : { ...apptData, next_visit: nextVisitDate || undefined };
+                    await onSave(dataToSave as Appointment & { next_visit?: string });
                   } else {
-                    await saveAppointment(apptData);
+                    if (initialData?.id) {
+                      await updateAppointment(initialData.id, apptData);
+                    } else {
+                      await saveAppointment(apptData);
+                    }
                     setView('dashboard');
                   }
                 } catch (error: unknown) {
@@ -360,7 +376,7 @@ export const NewAppointmentView = ({ setView, clients, onSave }: NewAppointmentV
               ) : (
                 <CheckCircle2 size={20} />
               )}
-              {isSaving ? 'Salvando...' : 'Salvar Atendimento'}
+              {isSaving ? 'Salvando...' : (initialData ? 'Atualizar Atendimento' : 'Salvar Atendimento')}
             </button>
           </div>
         </div>
@@ -397,7 +413,7 @@ export const NewAppointmentView = ({ setView, clients, onSave }: NewAppointmentV
                     </div>
                     <div className="p-4 rounded-2xl bg-surface-container-low border border-white/50">
                       <p className="text-[10px] uppercase font-bold text-outline tracking-wider mb-1">Última Visita</p>
-                      <p className="font-headline font-bold text-sm text-primary truncate">{selectedClient.lastVisit || 'Nunca'}</p>
+                      <p className="font-headline font-bold text-sm text-primary truncate">{formatDateBR(selectedClient.lastVisit) || 'Nunca'}</p>
                     </div>
                   </div>
                   <div className="p-5 rounded-2xl bg-primary-container/5 border border-primary/10">

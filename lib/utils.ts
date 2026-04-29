@@ -50,7 +50,7 @@ export const formatDateBR = (dateStr: string | null | undefined) => {
     const [year, month, day] = dateStr.split('T')[0].split('-');
     if (!year || !month || !day) return dateStr;
     return `${day}/${month}/${year}`;
-  } catch (_e) {
+  } catch {
     return dateStr;
   }
 };
