@@ -24,15 +24,9 @@ export const getAvatarUrl = (seed: string | undefined | null) => {
   }
   const index = Math.abs(hash) % colors.length;
 
-  // Parâmetros para Lorelei (v9):
-  // - beardProbability: 0 (fundamental para garantir feminino)
-  // - mouth: Apenas sorrisos e expressões felizes (removendo sad, serious, etc)
-  // - eyes: Expressões amigáveis
-  const mouths = ['happy', 'laughing', 'smile', 'twinkle'].join(',');
-  const eyes = ['happy', 'wink', 'wink2', 'closed', 'hearts'].join(',');
-  
-  // Usamos v=10 para forçar o recarregamento e garantir v9 da API
-  return `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(name)}&backgroundColor=${colors[index]}&mouth=${mouths}&eyes=${eyes}&beardProbability=0&v=10`;
+  // Parâmetros para Notionists (v9):
+  // Muito mais limpo e profissional
+  return `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(name)}&backgroundColor=${colors[index]}&v=12`;
 };
 
 export const getLocalDateString = () => {

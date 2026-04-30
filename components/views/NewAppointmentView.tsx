@@ -28,7 +28,7 @@ export const NewAppointmentView = ({ setView, clients, onSave, initialData }: Ne
   const [activePreset, setActivePreset] = useState<number | null>(null);
   const [clientSearch, setClientSearch] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(
-    initialData ? (clients.find(c => c.id === initialData.client_id) || clients.find(c => c.name === initialData.client_name) || null) : null
+    initialData ? (clients.find(c => c.id?.toString() === initialData.client_id?.toString()) || clients.find(c => c.name === initialData.client_name) || null) : null
   );
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);

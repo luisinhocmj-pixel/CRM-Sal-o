@@ -240,13 +240,16 @@ export const AgendaView = ({ setView, onSelectClient, onEditAppointment, clients
                               e.stopPropagation();
                               onEditAppointment?.(app);
                             }}
-                            className="p-2 text-slate-300 hover:text-primary hover:bg-primary/5 rounded-full transition-all"
+                            title="Editar atendimento"
+                            className="p-2 text-primary/40 hover:text-primary hover:bg-primary/5 rounded-full transition-all flex items-center gap-1"
                           >
                             <Edit2 size={16} />
+                            <span className="text-[10px] font-bold md:hidden">Editar</span>
                           </button>
                           <button 
                             onClick={(e) => app.id && handleDeleteAppointment(app.id, e)}
                             disabled={isDeleting === app.id}
+                            title="Excluir atendimento"
                             className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
                           >
                             {isDeleting === app.id ? <Loader2 size={16} className="animate-spin text-red-500" /> : <Trash2 size={16} />}

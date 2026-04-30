@@ -590,9 +590,14 @@ export const updateAppointment = async (id: number | string, appointment: Partia
   const user = await getAuthenticatedUser();
   if (!user) throw new Error('User not authenticated');
 
+  // Removendo id e user_id do payload para evitar erro de mutação de chave primária ou RLS
+  const updateData = { ...appointment };
+  delete updateData.id;
+  delete (updateData as any).user_id;
+
   const { data, error } = await supabase
     .from('appointments')
-    .update(appointment)
+    .update(updateData)
     .eq('id', id)
     .eq('user_id', user.id)
     .select()

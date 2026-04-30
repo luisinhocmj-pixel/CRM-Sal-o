@@ -25,7 +25,16 @@ export const AuthView = ({ onAuthSuccess }: AuthViewProps) => {
       if (isLogin) {
         if (!supabase) throw new Error('Serviço de autenticação não configurado');
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+          // Traduzindo erros comuns do Supabase
+          if (error.message.includes('Invalid login credentials')) {
+            throw new Error('E-mail ou senha incorretos. Verifique e tente novamente.');
+          }
+          if (error.message.includes('Email not confirmed')) {
+            throw new Error('Por favor, confirme seu e-mail antes de acessar.');
+          }
+          throw error;
+        }
       } else {
         if (!supabase) throw new Error('Serviço de autenticação não configurado');
         const { error } = await supabase.auth.signUp({ 
@@ -41,7 +50,12 @@ export const AuthView = ({ onAuthSuccess }: AuthViewProps) => {
       onAuthSuccess();
     } catch (err: unknown) {
       const error = err as Error;
-      setError(error.message || 'Ocorreu um erro na autenticação');
+      // Garante que o erro seja uma string amigável
+      const displayError = error.message === 'Failed to fetch' 
+        ? 'Erro de conexão. Verifique sua internet.' 
+        : error.message || 'Ocorreu um erro na autenticação';
+        
+      setError(displayError);
     } finally {
       setLoading(false);
     }
