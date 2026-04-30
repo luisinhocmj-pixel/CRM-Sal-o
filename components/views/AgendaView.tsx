@@ -22,7 +22,7 @@ export const AgendaView = ({ setView, onSelectClient, onEditAppointment, clients
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [returnForecasts, setReturnForecasts] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<number | string | null>(null);
 
   const getWeekDays = React.useCallback(() => {
     const start = new Date(selectedDate);
@@ -99,14 +99,14 @@ export const AgendaView = ({ setView, onSelectClient, onEditAppointment, clients
     fetchAgendaData();
   }, [fetchAgendaData]);
 
-  const handleDeleteAppointment = async (id: string, e: React.MouseEvent) => {
+  const handleDeleteAppointment = async (id: number | string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm('Deseja realmente excluir este atendimento?')) return;
     
     setIsDeleting(id);
     const success = await deleteAppointment(id);
     if (success) {
-      setAppointments(prev => prev.filter(a => a.id !== id));
+      setAppointments(prev => prev.filter(a => a.id?.toString() !== id.toString()));
     } else {
       alert('Erro ao excluir atendimento.');
     }

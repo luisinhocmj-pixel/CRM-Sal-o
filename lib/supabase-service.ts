@@ -571,7 +571,7 @@ export const getReturnForecasts = async (startDate: string, endDate: string): Pr
   })) as Client[];
 };
 
-export const deleteAppointment = async (id: string): Promise<boolean> => {
+export const deleteAppointment = async (id: string | number): Promise<boolean> => {
   if (!supabase) return false;
   const { error } = await supabase
     .from('appointments')
