@@ -12,10 +12,6 @@ const isValidUrl = (url: string) => {
   }
 };
 
-if (typeof window === 'undefined') {
-  console.log('Ambiente Server-side. Chaves disponíveis:', Object.keys(process.env).filter(k => k.startsWith('NEXT_PUBLIC_') || k.startsWith('SUPABASE')));
-}
-
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase: Chaves API não encontradas. Verifique se os nomes nos "Secrets" estão completos: NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY');
 }

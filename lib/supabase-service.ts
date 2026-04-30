@@ -311,7 +311,7 @@ export const getClients = async (page = 1, pageSize = 20, search = '', retries =
     }
     
     if (!data || data.length === 0) {
-      console.log(`getClients: Nenhum resultado para o usuário ${user.id} (Busca: "${search}")`);
+      // getClients: Nenhum resultado para o usuário ${user.id} (Busca: "${search}")
     }
     
     const clients = (data || []).map(c => {
@@ -591,9 +591,9 @@ export const updateAppointment = async (id: number | string, appointment: Partia
   if (!user) throw new Error('User not authenticated');
 
   // Removendo id e user_id do payload para evitar erro de mutação de chave primária ou RLS
-  const updateData = { ...appointment };
+  const updateData: Partial<Appointment> & { user_id?: string } = { ...appointment };
   delete updateData.id;
-  delete (updateData as any).user_id;
+  delete updateData.user_id;
 
   const { data, error } = await supabase
     .from('appointments')
@@ -727,9 +727,7 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
   const user = await getAuthenticatedUser();
   if (!user) throw new Error('Usuário não autenticado para sincronização.');
 
-  console.log('Iniciando sincronização robusta...');
-
-  // 1. Get existing clients to avoid duplicates and map names to IDs
+  // Iniciando sincronização robusta...
   const { data: existingClientsData, error: fetchError } = await supabase
     .from('clients')
     .select('id, name')
@@ -745,8 +743,7 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
     clientMap.set(normalize(c.name), c.id);
   });
 
-  // 2. Sync Clients (Upsert)
-  console.log('Sincronizando clientes...');
+  // Sincronizando clientes...
   const clientsToUpsert = initialClients.map(c => ({
     user_id: user.id,
     name: c.name,
@@ -778,8 +775,7 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
     clientMap.set(normalize(c.name), c.id);
   });
 
-  console.log('Clientes sincronizados. Processando agendamentos...');
-
+  // Clientes sincronizados. Processando agendamentos...
   // 3. Process Appointments (Ensure client_id exists)
   const appointmentsToInsert = [];
   
@@ -791,7 +787,7 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
 
     // If client doesn't exist, create it on the fly
     if (!clientId) {
-      console.log(`Cliente "${appt.client}" não encontrado. Criando automaticamente...`);
+      // Cliente "${appt.client}" não encontrado. Criando automaticamente...
       const { data: newClient, error: createError } = await supabase
         .from('clients')
         .insert({
@@ -854,5 +850,5 @@ export const seedDatabase = async (initialClients: Client[], appointments: { cli
     throw new Error(`Erro nos Agendamentos: ${apptError.message || 'Erro desconhecido no banco de dados'}`);
   }
 
-  console.log('Sincronização concluída com sucesso!');
+  // Sincronização concluída com sucesso!
 };

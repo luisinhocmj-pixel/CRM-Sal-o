@@ -1,10 +1,22 @@
 import { NextResponse } from 'next/server';
 import { createCalendarEvent } from '@/lib/google-calendar';
 import { createClient } from '@/lib/supabase-server';
+import { AppointmentSchema } from '@/lib/supabase-service';
 
 export async function POST(request: Request) {
   try {
-    const { appointment } = await request.json();
+    const body = await request.json();
+    
+    // Validando body com Zod
+    const validation = AppointmentSchema.safeParse(body.appointment);
+    if (!validation.success) {
+      return NextResponse.json({ 
+        error: 'Invalid appointment data', 
+        details: validation.error.format() 
+      }, { status: 400 });
+    }
+
+    const appointment = validation.data;
     
     // Initializing the server-side Supabase client for safe cookie handling
     const supabase = await createClient();
