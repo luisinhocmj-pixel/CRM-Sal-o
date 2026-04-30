@@ -34,9 +34,7 @@ export async function middleware(request: NextRequest) {
 
   if (!session) {
     // Se não estiver logado e tentar acessar rota privada, manda pro login
-    // Nota: No nosso app a AuthView é exibida condicionalmente no LuxeBeautyApp,
-    // mas o middleware é uma camada extra de segurança.
-    return NextResponse.next() 
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // Busca status de billing (só o campo necessário)

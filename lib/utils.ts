@@ -24,9 +24,9 @@ export const getAvatarUrl = (seed: string | undefined | null) => {
   }
   const index = Math.abs(hash) % colors.length;
 
-  // Parâmetros para Notionists (v9):
-  // Muito mais limpo e profissional
-  return `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(name)}&backgroundColor=${colors[index]}&v=12`;
+  // Parâmetros para Lorelei (v9):
+  // Mais feminino e elegante para um salão de beleza
+  return `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(name)}&backgroundColor=${colors[index]}&beardProbability=0&v=13`;
 };
 
 export const getLocalDateString = () => {

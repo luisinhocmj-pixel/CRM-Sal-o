@@ -27,11 +27,17 @@ export const AuthView = ({ onAuthSuccess }: AuthViewProps) => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
           // Traduzindo erros comuns do Supabase
-          if (error.message.includes('Invalid login credentials')) {
+          if (error.message.includes('Invalid login credentials') || error.message.includes('invalid_credentials')) {
             throw new Error('E-mail ou senha incorretos. Verifique e tente novamente.');
           }
-          if (error.message.includes('Email not confirmed')) {
+          if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
             throw new Error('Por favor, confirme seu e-mail antes de acessar.');
+          }
+          if (error.message.includes('User not found') || error.message.includes('user_not_found')) {
+            throw new Error('Usuário não encontrado. Verifique seu e-mail ou cadastre-se.');
+          }
+          if (error.message.includes('Too many requests')) {
+            throw new Error('Muitas tentativas. Tente novamente mais tarde.');
           }
           throw error;
         }

@@ -50,7 +50,7 @@ export async function GET(request: Request) {
         <script>
           // Send message to the main window and close this popup
           if (window.opener) {
-            window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS' }, '*');
+            window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS' }, window.location.origin);
             setTimeout(() => window.close(), 1000);
           } else {
             window.location.href = '/';
